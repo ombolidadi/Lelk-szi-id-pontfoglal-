@@ -1,0 +1,48 @@
+<%- include('../partials/header') %>
+<h1>Lelkészek</h1>
+
+<% if (created) { %>
+  <div class="alert alert-success">
+    Belépési adatok – adja át a lelkésznek (csak most látható!):<br>
+    E-mail: <strong><%= created.email %></strong> · Jelszó: <code><%= created.password %></code><br>
+    Első belépés után a Profil oldalon módosíthatja a jelszavát, és csatlakoztathatja a saját Google naptárát.
+  </div>
+<% } %>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Név</th><th>Szerepkör</th><th>Google</th><th>Közelgő</th><th></th></tr></thead>
+  <tbody>
+  <% pastors.forEach(function (p) { %>
+    <tr class="<%= p.active ? '' : 'cancelled' %>">
+      <td><strong><%= p.name %></strong><br><small><%= p.email %></small></td>
+      <td><%= p.role === 'admin' ? 'Adminisztrátor' : 'Lelkész' %><%= p.active ? '' : ' (inaktív)' %></td>
+      <td><%= p.google_count ? p.google_count + ' fiók' : '–' %></td>
+      <td><%= p.upcoming %></td>
+      <td class="actions">
+        <a class="btn btn-small btn-ghost" href="/admin/availability?lelkesz=<%= p.id %>">Elérhetőség</a>
+        <form method="post" action="/admin/pastors/<%= p.id %>" class="inline">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button class="btn btn-small btn-ghost" name="action" value="reset" onclick="return confirm('Új jelszót generál?')">Új jelszó</button>
+          <% if (p.id !== currentUser.id) { %>
+            <button class="btn btn-small btn-ghost" name="action" value="role"><%= p.role === 'admin' ? 'Admin jog elvétele' : 'Admin jog' %></button>
+            <button class="btn btn-small btn-ghost" name="action" value="toggle"><%= p.active ? 'Inaktiválás' : 'Aktiválás' %></button>
+          <% } %>
+        </form>
+      </td>
+    </tr>
+  <% }) %>
+  </tbody>
+</table>
+</div>
+
+<h2>Új lelkész felvétele</h2>
+<form method="post" action="/admin/pastors" class="card form-grid">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label>Név<input name="name" required></label>
+  <label>E-mail<input name="email" type="email" required></label>
+  <label>Jelszó (üresen: generált)<input name="password" type="text" minlength="8"></label>
+  <label>Szerepkör<select name="role"><option value="pastor">Lelkész</option><option value="admin">Adminisztrátor</option></select></label>
+  <button class="btn btn-primary">Felvétel</button>
+</form>
+<%- include('../partials/footer') %>

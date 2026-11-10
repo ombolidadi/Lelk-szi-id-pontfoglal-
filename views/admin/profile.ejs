@@ -1,0 +1,14 @@
+<%- include('../partials/header') %>
+<h1>Profil</h1>
+<form method="post" class="card narrow">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label>Név<input name="name" required value="<%= user.name %>"></label>
+  <label>Megnevezés (pl. „parókus lelkész”)<input name="title" value="<%= user.title %>"></label>
+  <label>Rövid bemutatkozás<textarea name="bio" rows="4"><%= user.bio %></textarea></label>
+  <label>E-mail cím (belépéshez és értesítésekhez)<input name="email" type="email" required value="<%= user.email %>"></label>
+  <h3>Jelszócsere</h3>
+  <label>Jelenlegi jelszó<input name="current_password" type="password" autocomplete="current-password"></label>
+  <label>Új jelszó (hagyja üresen, ha nem változtat)<input name="new_password" type="password" minlength="8" autocomplete="new-password"></label>
+  <button class="btn btn-primary">Mentés</button>
+</form>
+<%- include('../partials/footer') %>

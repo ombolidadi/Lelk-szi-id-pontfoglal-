@@ -1,0 +1,132 @@
+const path = require('path');
+const fs = require('fs');
+const Database = require('better-sqlite3');
+
+const dbFile = process.env.DATABASE_FILE || path.join(__dirname, '..', 'data', 'app.db');
+fs.mkdirSync(path.dirname(dbFile), { recursive: true });
+
+const db = new Database(dbFile);
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  name TEXT NOT NULL,
+  title TEXT DEFAULT '',
+  bio TEXT DEFAULT '',
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'pastor',
+  active INTEGER NOT NULL DEFAULT 1,
+  target_account_id INTEGER,
+  target_calendar_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS google_accounts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  refresh_token TEXT,
+  access_token TEXT,
+  token_expiry INTEGER,
+  last_error TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, email)
+);
+
+CREATE TABLE IF NOT EXISTS google_calendars (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_id INTEGER NOT NULL REFERENCES google_accounts(id) ON DELETE CASCADE,
+  calendar_id TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  is_primary INTEGER NOT NULL DEFAULT 0,
+  can_write INTEGER NOT NULL DEFAULT 0,
+  check_busy INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(account_id, calendar_id)
+);
+
+CREATE TABLE IF NOT EXISTS services (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  description TEXT DEFAULT '',
+  duration_min INTEGER NOT NULL DEFAULT 60,
+  buffer_min INTEGER NOT NULL DEFAULT 0,
+  location TEXT DEFAULT '',
+  color TEXT DEFAULT '#4f6d7a',
+  active INTEGER NOT NULL DEFAULT 1,
+  sort INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS pastor_services (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  service_id INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  PRIMARY KEY (user_id, service_id)
+);
+
+CREATE TABLE IF NOT EXISTS availability (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  weekday INTEGER NOT NULL,         -- 1 = hétfő ... 7 = vasárnap
+  start_time TEXT NOT NULL,         -- 'HH:MM' helyi idő
+  end_time TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS time_off (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  start_date TEXT NOT NULL,         -- 'YYYY-MM-DD'
+  end_date TEXT NOT NULL,
+  note TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS bookings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  service_id INTEGER NOT NULL REFERENCES services(id),
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  start_utc TEXT NOT NULL,
+  end_utc TEXT NOT NULL,
+  client_name TEXT NOT NULL,
+  client_email TEXT NOT NULL,
+  client_phone TEXT DEFAULT '',
+  note TEXT DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'confirmed',
+  token TEXT NOT NULL UNIQUE,
+  google_account_id INTEGER,
+  google_calendar_id TEXT,
+  google_event_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_bookings_user_start ON bookings(user_id, start_utc);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT
+);
+`);
+
+const DEFAULT_SETTINGS = {
+  org_name: 'Gyülekezet',
+  org_intro: 'Foglaljon időpontot lelkészeinkhez beszélgetésre, lelkigondozásra vagy egyéb alkalomra.',
+  timezone: 'Europe/Budapest',
+  min_notice_hours: '12',
+  max_days_ahead: '60',
+  slot_step_min: '30',
+  invite_client: '1',
+};
+
+function getSettings() {
+  const rows = db.prepare('SELECT key, value FROM settings').all();
+  const s = { ...DEFAULT_SETTINGS };
+  for (const r of rows) s[r.key] = r.value;
+  return s;
+}
+
+function setSetting(key, value) {
+  db.prepare('INSERT INTO settings(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+    .run(key, String(value));
+}
+
+module.exports = { db, getSettings, setSetting };

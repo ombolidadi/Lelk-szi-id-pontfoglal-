@@ -1,0 +1,33 @@
+{
+  "name": "lelkeszi-idopontfoglalo",
+  "version": "1.0.0",
+  "description": "Online időpontfoglaló több lelkész számára, Google Naptár szinkronizációval",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ombolidadi/Lelk-szi-id-pontfoglal-.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ombolidadi/Lelk-szi-id-pontfoglal-/issues"
+  },
+  "homepage": "https://github.com/ombolidadi/Lelk-szi-id-pontfoglal-#readme",
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "cookie-session": "^2.1.1",
+    "dotenv": "^18.0.10",
+    "ejs": "^7.0.2",
+    "express": "^5.3.0",
+    "luxon": "^3.7.2",
+    "nodemailer": "^10.5.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "private": true
+}

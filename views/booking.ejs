@@ -1,0 +1,26 @@
+<%- include('partials/header') %>
+<section class="card narrow">
+  <% if (booking.status === 'cancelled') { %>
+    <h1>Lemondott foglalás</h1>
+    <p>Ez a foglalás le lett mondva.</p>
+  <% } else { %>
+    <h1>Foglalás visszaigazolása</h1>
+    <p>Köszönjük! Időpontját rögzítettük. Kérjük, mentse el ezt az oldalt (vagy a linkjét), ha később le szeretné mondani.</p>
+  <% } %>
+  <dl class="details">
+    <dt>Szolgáltatás</dt><dd><%= booking.service_name %></dd>
+    <dt>Lelkész</dt><dd><%= booking.pastor_name %></dd>
+    <dt>Időpont</dt><dd><%= when %></dd>
+    <% if (booking.location) { %><dt>Helyszín</dt><dd><%= booking.location %></dd><% } %>
+    <dt>Név</dt><dd><%= booking.client_name %></dd>
+    <dt>E-mail</dt><dd><%= booking.client_email %></dd>
+  </dl>
+  <% if (booking.status === 'confirmed' && !isPast) { %>
+    <form method="post" action="/foglalas/<%= booking.token %>/lemondas" onsubmit="return confirm('Biztosan lemondja az időpontot?')">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <button class="btn btn-danger">Időpont lemondása</button>
+    </form>
+  <% } %>
+  <p><a href="/">← Vissza a kezdőlapra</a></p>
+</section>
+<%- include('partials/footer') %>

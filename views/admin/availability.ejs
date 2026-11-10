@@ -1,0 +1,40 @@
+<%- include('../partials/header') %>
+<h1>Elérhetőség<% if (target.id !== currentUser.id) { %> – <%= target.name %><% } %></h1>
+<p class="muted">Adja meg, mely időszakokban foglalhatók Önnél időpontok. Több időszakot vesszővel válasszon el,
+  pl. <code>09:00-12:00, 14:00-17:30</code>. Üresen hagyott nap = nem foglalható.
+  A Google naptárában lévő foglalt időszakokat a rendszer automatikusan kihagyja.</p>
+
+<form method="post" class="card">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="lelkesz" value="<%= target.id %>">
+  <div class="week-form">
+  <% for (let d = 1; d <= 7; d++) { %>
+    <label><span><%= WEEKDAYS[d] %></span><input name="day<%= d %>" value="<%= days[d] %>" placeholder="pl. 09:00-12:00, 14:00-17:00"></label>
+  <% } %>
+  </div>
+  <button class="btn btn-primary">Mentés</button>
+</form>
+
+<h2>Távollétek, szabadság</h2>
+<form method="post" action="/admin/timeoff" class="card form-grid">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="lelkesz" value="<%= target.id %>">
+  <label>Kezdete<input type="date" name="start_date" required></label>
+  <label>Vége<input type="date" name="end_date"></label>
+  <label>Megjegyzés<input name="note" placeholder="pl. szabadság"></label>
+  <button class="btn">Hozzáadás</button>
+</form>
+<% if (timeOff.length) { %>
+<ul class="list">
+  <% timeOff.forEach(function (t) { %>
+    <li>
+      <span><%= t.start_date %><%= t.end_date !== t.start_date ? ' – ' + t.end_date : '' %> <% if (t.note) { %><em><%= t.note %></em><% } %></span>
+      <form method="post" action="/admin/timeoff/<%= t.id %>/delete" class="inline">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <button class="btn btn-small btn-ghost">Törlés</button>
+      </form>
+    </li>
+  <% }) %>
+</ul>
+<% } else { %><p class="muted">Nincs rögzített távollét.</p><% } %>
+<%- include('../partials/footer') %>

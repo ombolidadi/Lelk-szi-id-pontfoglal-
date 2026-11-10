@@ -1,0 +1,50 @@
+<%- include('partials/header') %>
+<p><a href="/">← Minden szolgáltatás</a></p>
+<section class="card" style="--accent: <%= service.color %>">
+  <h1><%= service.name %></h1>
+  <% if (service.description) { %><p><%= service.description %></p><% } %>
+  <p class="meta"><%= service.duration_min %> perc<% if (service.location) { %> · <%= service.location %><% } %></p>
+</section>
+
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<% if (!pastors.length) { %>
+  <p class="muted">Ehhez a szolgáltatáshoz jelenleg nincs elérhető lelkész.</p>
+<% } else { %>
+<form method="post" id="booking-form" class="card" data-service="<%= service.id %>">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="start" id="start" value="<%= form.start || '' %>">
+
+  <h2>1. Lelkész</h2>
+  <div class="pastor-pick">
+    <% if (pastors.length > 1) { %>
+      <label class="radio-card"><input type="radio" name="pastor" value="any" <%= !preselect ? 'checked' : '' %>> <span>Bármelyik lelkész</span></label>
+    <% } %>
+    <% pastors.forEach(function (p) { %>
+      <label class="radio-card"><input type="radio" name="pastor" value="<%= p.id %>" <%= (preselect === p.id || pastors.length === 1) ? 'checked' : '' %>>
+        <span><%= p.name %><% if (p.title) { %><small><%= p.title %></small><% } %></span></label>
+    <% }) %>
+  </div>
+
+  <h2>2. Időpont</h2>
+  <div class="week-nav">
+    <button type="button" class="btn btn-ghost" id="prev-week">‹ Előző</button>
+    <strong id="week-label"></strong>
+    <button type="button" class="btn btn-ghost" id="next-week">Következő ›</button>
+  </div>
+  <div id="slots" class="slots" aria-live="polite"><p class="muted">Betöltés…</p></div>
+  <p id="chosen" class="chosen" hidden></p>
+
+  <h2>3. Adatai</h2>
+  <div class="form-grid">
+    <label>Név *<input name="name" required maxlength="120" value="<%= form.name || '' %>" autocomplete="name"></label>
+    <label>E-mail *<input name="email" type="email" required maxlength="200" value="<%= form.email || '' %>" autocomplete="email"></label>
+    <label>Telefon<input name="phone" type="tel" maxlength="40" value="<%= form.phone || '' %>" autocomplete="tel"></label>
+  </div>
+  <label>Megjegyzés (nem kötelező)<textarea name="note" rows="3" maxlength="2000" placeholder="Miben segíthetünk?"><%= form.note || '' %></textarea></label>
+  <label class="check"><input type="checkbox" name="consent" required> Elolvastam és elfogadom az <a href="/adatkezeles" target="_blank">adatkezelési tájékoztatót</a>.</label>
+  <button class="btn btn-primary" id="submit" disabled>Időpont lefoglalása</button>
+</form>
+<script src="/booking.js"></script>
+<% } %>
+<%- include('partials/footer') %>
