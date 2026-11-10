@@ -4,6 +4,7 @@ const { db, getSettings, setSetting } = require('../db');
 const { hashPassword, verifyPassword, randomToken } = require('../security');
 const google = require('../google');
 const { cancelBooking } = require('../bookings');
+const { KINDS, slugify: groupSlug, uniqueSlug, isMember, groupUrl } = require('../groups');
 
 const router = express.Router();
 const WEEKDAYS = ['', 'Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 'Vasárnap'];
@@ -126,11 +127,11 @@ router.get('/profile', (req, res) => {
 
 router.post('/profile', (req, res) => {
   const me = db.prepare('SELECT * FROM users WHERE id = ?').get(res.locals.currentUser.id);
-  const { name, title, bio, email, current_password, new_password } = req.body;
+  const { name, title, bio, email, congregation, current_password, new_password } = req.body;
   if (!name || !email) { flash(req, 'error', 'A név és az e-mail cím kötelező.'); return res.redirect('/admin/profile'); }
   try {
-    db.prepare('UPDATE users SET name = ?, title = ?, bio = ?, email = ? WHERE id = ?')
-      .run(name.trim(), (title || '').trim(), (bio || '').trim(), email.trim(), me.id);
+    db.prepare('UPDATE users SET name = ?, title = ?, bio = ?, email = ?, congregation = ? WHERE id = ?')
+      .run(name.trim(), (title || '').trim(), (bio || '').trim(), email.trim(), String(congregation || '').trim().slice(0, 120), me.id);
   } catch {
     flash(req, 'error', 'Ez az e-mail cím már foglalt.'); return res.redirect('/admin/profile');
   }
@@ -382,17 +383,24 @@ router.get('/pastors', requireAdmin, (req, res) => {
   const pastors = db.prepare(`SELECT u.*, (SELECT COUNT(*) FROM google_accounts g WHERE g.user_id = u.id) AS google_count,
     (SELECT COUNT(*) FROM bookings b WHERE b.user_id = u.id AND b.status = 'confirmed' AND b.start_utc >= ?) AS upcoming
     FROM users u ORDER BY u.active DESC, u.name`).all(new Date().toISOString());
-  res.render('admin/pastors', { title: 'Lelkészek', pastors, created: req.session.createdPw || null });
+  const groups = db.prepare('SELECT * FROM groups ORDER BY name').all();
+  const memberships = db.prepare('SELECT gm.user_id, g.name FROM group_members gm JOIN groups g ON g.id = gm.group_id ORDER BY g.name').all();
+  const congregations = db.prepare("SELECT DISTINCT congregation FROM users WHERE congregation != '' ORDER BY congregation").all().map((r) => r.congregation);
+  res.render('admin/pastors', { title: 'Lelkészek', pastors, groups, memberships, congregations, created: req.session.createdPw || null });
   delete req.session.createdPw;
 });
 
 router.post('/pastors', requireAdmin, (req, res) => {
-  const { name, email, role } = req.body;
+  const { name, email, role, congregation } = req.body;
   if (!name || !email) { flash(req, 'error', 'A név és az e-mail cím kötelező.'); return res.redirect('/admin/pastors'); }
   const password = req.body.password || randomToken(9);
   try {
-    const id = db.prepare('INSERT INTO users(name, email, password_hash, role) VALUES (?, ?, ?, ?)')
-      .run(name.trim(), email.trim(), hashPassword(password), role === 'admin' ? 'admin' : 'pastor').lastInsertRowid;
+    const id = db.prepare('INSERT INTO users(name, email, password_hash, role, congregation) VALUES (?, ?, ?, ?, ?)')
+      .run(name.trim(), email.trim(), hashPassword(password), role === 'admin' ? 'admin' : 'pastor',
+        String(congregation || '').trim().slice(0, 120)).lastInsertRowid;
+    for (const gid of [].concat(req.body.groups || []).map(Number)) {
+      db.prepare('INSERT OR IGNORE INTO group_members(group_id, user_id) SELECT id, ? FROM groups WHERE id = ?').run(id, gid);
+    }
     const ins = db.prepare('INSERT INTO availability(user_id, weekday, start_time, end_time) VALUES (?, ?, ?, ?)');
     for (let d = 1; d <= 5; d++) ins.run(id, d, '09:00', '16:00');
     req.session.createdPw = { email: email.trim(), password };
@@ -408,7 +416,10 @@ router.post('/pastors/:id', requireAdmin, (req, res) => {
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   if (!u) return res.redirect('/admin/pastors');
   const action = req.body.action;
-  if (action === 'toggle' && id !== me.id) {
+  if (action === 'congregation') {
+    db.prepare('UPDATE users SET congregation = ? WHERE id = ?').run(String(req.body.congregation || '').trim().slice(0, 120), id);
+    flash(req, 'success', `${u.name} gyülekezete mentve.`);
+  } else if (action === 'toggle' && id !== me.id) {
     db.prepare('UPDATE users SET active = 1 - active WHERE id = ?').run(id);
     flash(req, 'info', u.active ? `${u.name} inaktiválva.` : `${u.name} újra aktív.`);
   } else if (action === 'role' && id !== me.id) {
@@ -420,6 +431,111 @@ router.post('/pastors/:id', requireAdmin, (req, res) => {
     req.session.createdPw = { email: u.email, password };
   }
   res.redirect('/admin/pastors');
+});
+
+// --- Csoportok (gyülekezetek, munkacsoportok) -----------------------------------
+// Bármely lelkész létrehozhat csoportot; szerkeszteni a csoport tagjai és az adminisztrátorok tudják.
+function canEditGroup(me, group) {
+  return me.role === 'admin' || isMember(group.id, me.id);
+}
+
+router.get('/groups', (req, res) => {
+  const me = res.locals.currentUser;
+  const groups = db.prepare('SELECT * FROM groups ORDER BY active DESC, name').all();
+  for (const g of groups) {
+    g.members = db.prepare(`SELECT u.id, u.name FROM group_members gm JOIN users u ON u.id = gm.user_id
+      WHERE gm.group_id = ? AND u.active = 1 ORDER BY u.name`).all(g.id);
+    g.url = groupUrl(g);
+    g.canEdit = canEditGroup(me, g);
+    g.mine = g.members.some((m) => m.id === me.id);
+  }
+  groups.sort((a, b) => Number(b.mine) - Number(a.mine));
+  // Gyülekezetek, amelyekhez még nincs azonos nevű csoport – egy kattintással létrehozhatók.
+  const existing = new Set(groups.map((g) => g.name.toLowerCase()));
+  const suggestions = db.prepare(`SELECT congregation, COUNT(*) AS n FROM users WHERE active = 1 AND congregation != ''
+    GROUP BY congregation ORDER BY congregation`).all().filter((c) => !existing.has(c.congregation.toLowerCase()));
+  res.render('admin/groups', { title: 'Csoportok', groups, suggestions, KINDS });
+});
+
+router.post('/groups/from-congregation', (req, res) => {
+  const name = String(req.body.congregation || '').trim();
+  const members = db.prepare('SELECT id FROM users WHERE active = 1 AND congregation = ?').all(name);
+  if (!name || !members.length) return res.redirect('/admin/groups');
+  const gid = db.transaction(() => {
+    const id = db.prepare("INSERT INTO groups(name, slug, kind, created_by) VALUES (?, ?, 'gyulekezet', ?)")
+      .run(name, uniqueSlug(groupSlug(name)), res.locals.currentUser.id).lastInsertRowid;
+    for (const m of members) db.prepare('INSERT INTO group_members(group_id, user_id) VALUES (?, ?)').run(id, m.id);
+    return id;
+  })();
+  flash(req, 'success', `„${name}” csoport létrehozva ${members.length} lelkésszel.`);
+  res.redirect(`/admin/groups/${gid}`);
+});
+
+function groupForm(res, group, error) {
+  const pastors = db.prepare('SELECT id, name, congregation FROM users WHERE active = 1 ORDER BY name').all();
+  const assigned = new Set(group.id ? db.prepare('SELECT user_id FROM group_members WHERE group_id = ?').all(group.id).map((r) => r.user_id)
+    : [res.locals.currentUser.id]);
+  res.render('admin/group-edit', {
+    title: group.id ? 'Csoport szerkesztése' : 'Új csoport', group, pastors, assigned, error, KINDS,
+    url: group.slug ? groupUrl(group) : null,
+  });
+}
+
+router.get('/groups/new', (req, res) => groupForm(res, { kind: 'gyulekezet', active: 1 }, null));
+
+router.get('/groups/:id', (req, res) => {
+  const g = db.prepare('SELECT * FROM groups WHERE id = ?').get(Number(req.params.id));
+  if (!g) return res.redirect('/admin/groups');
+  if (!canEditGroup(res.locals.currentUser, g)) return res.redirect('/admin/groups');
+  groupForm(res, g, null);
+});
+
+router.post('/groups/:id', (req, res) => {
+  const me = res.locals.currentUser;
+  const isNew = req.params.id === 'new';
+  const id = isNew ? null : Number(req.params.id);
+  if (!isNew) {
+    const g = db.prepare('SELECT * FROM groups WHERE id = ?').get(id);
+    if (!g || !canEditGroup(me, g)) return res.redirect('/admin/groups');
+  }
+  const b = req.body;
+  const data = {
+    name: String(b.name || '').trim().slice(0, 120),
+    kind: KINDS[b.kind] ? b.kind : 'egyeb',
+    description: String(b.description || '').trim().slice(0, 1000),
+    active: b.active === 'on' ? 1 : 0,
+  };
+  data.slug = groupSlug(b.slug || data.name);
+  let members = [...new Set([].concat(b.members || []).map(Number))];
+  // Nem admin lelkész nem zárhatja ki magát véletlenül (különben elveszítené a szerkesztési jogot).
+  if (me.role !== 'admin' && !members.includes(me.id)) members.push(me.id);
+  if (!data.name) return groupForm(res, { ...data, id }, 'A név kötelező.');
+  if (db.prepare('SELECT 1 FROM groups WHERE slug = ? AND id != ?').get(data.slug, id || 0)) {
+    return groupForm(res, { ...data, id }, 'Ez a link-azonosító már foglalt, válasszon másikat.');
+  }
+  let gid = id;
+  db.transaction(() => {
+    if (isNew) {
+      gid = db.prepare('INSERT INTO groups(name, slug, kind, description, active, created_by) VALUES (@name, @slug, @kind, @description, @active, @created_by)')
+        .run({ ...data, created_by: me.id }).lastInsertRowid;
+    } else {
+      db.prepare('UPDATE groups SET name=@name, slug=@slug, kind=@kind, description=@description, active=@active WHERE id=@id').run({ ...data, id });
+    }
+    db.prepare('DELETE FROM group_members WHERE group_id = ?').run(gid);
+    const ins = db.prepare('INSERT OR IGNORE INTO group_members(group_id, user_id) SELECT ?, id FROM users WHERE id = ?');
+    for (const uid of members) ins.run(gid, uid);
+  })();
+  flash(req, 'success', 'Csoport mentve.');
+  res.redirect(`/admin/groups/${gid}`);
+});
+
+router.post('/groups/:id/delete', (req, res) => {
+  const g = db.prepare('SELECT * FROM groups WHERE id = ?').get(Number(req.params.id));
+  if (g && canEditGroup(res.locals.currentUser, g)) {
+    db.prepare('DELETE FROM groups WHERE id = ?').run(g.id);
+    flash(req, 'info', `„${g.name}” csoport törölve. A megosztott link ezután nem működik.`);
+  }
+  res.redirect('/admin/groups');
 });
 
 // --- Beállítások (admin) --------------------------------------------------------

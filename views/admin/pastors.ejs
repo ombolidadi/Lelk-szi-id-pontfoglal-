@@ -11,11 +11,21 @@
 
 <div class="table-wrap">
 <table>
-  <thead><tr><th>Név</th><th>Szerepkör</th><th>Google</th><th>Közelgő</th><th></th></tr></thead>
+  <thead><tr><th>Név</th><th>Gyülekezet, csoportok</th><th>Szerepkör</th><th>Google</th><th>Közelgő</th><th></th></tr></thead>
   <tbody>
   <% pastors.forEach(function (p) { %>
     <tr class="<%= p.active ? '' : 'cancelled' %>">
       <td><strong><%= p.name %></strong><br><small><%= p.email %></small></td>
+      <td>
+        <form method="post" action="/admin/pastors/<%= p.id %>" class="congr-form">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <input name="congregation" value="<%= p.congregation || '' %>" placeholder="Gyülekezet" list="congregations" aria-label="Gyülekezet">
+          <button class="btn btn-small btn-ghost" name="action" value="congregation">Mentés</button>
+        </form>
+        <% var gs = memberships.filter(function (m) { return m.user_id === p.id; }); if (gs.length) { %>
+          <div class="chips"><% gs.forEach(function (m) { %><span class="chip"><%= m.name %></span><% }) %></div>
+        <% } %>
+      </td>
       <td><%= p.role === 'admin' ? 'Adminisztrátor' : 'Lelkész' %><%= p.active ? '' : ' (inaktív)' %></td>
       <td><%= p.google_count ? p.google_count + ' fiók' : '–' %></td>
       <td><%= p.upcoming %></td>
@@ -42,7 +52,17 @@
   <label>Név<input name="name" required></label>
   <label>E-mail<input name="email" type="email" required></label>
   <label>Jelszó (üresen: generált)<input name="password" type="text" minlength="8"></label>
+  <label>Gyülekezet<input name="congregation" list="congregations" maxlength="120"></label>
   <label>Szerepkör<select name="role"><option value="pastor">Lelkész</option><option value="admin">Adminisztrátor</option></select></label>
+  <% if (groups.length) { %>
+  <div class="full-row">
+    <p class="label">Csoportok</p>
+    <div class="chips">
+      <% groups.forEach(function (g) { %><label class="check chip"><input type="checkbox" name="groups" value="<%= g.id %>"> <%= g.name %></label><% }) %>
+    </div>
+  </div>
+  <% } %>
   <button class="btn btn-primary">Felvétel</button>
 </form>
+<datalist id="congregations"><% congregations.forEach(function (c) { %><option value="<%= c %>"><% }) %></datalist>
 <%- include('../partials/footer') %>

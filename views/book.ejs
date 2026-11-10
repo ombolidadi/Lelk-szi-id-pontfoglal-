@@ -1,5 +1,9 @@
 <%- include('partials/header') %>
+<% if (group) { %>
+<p><a href="/csoport/<%= group.slug %>">← <%= group.name %></a></p>
+<% } else { %>
 <p><a href="/">← Minden szolgáltatás</a></p>
+<% } %>
 <section class="card" style="--accent: <%= service.color %>">
   <h1><%= service.name %></h1>
   <% if (service.description) { %><p><%= service.description %></p><% } %>
@@ -11,18 +15,19 @@
 <% if (!pastors.length) { %>
   <p class="muted">Ehhez a szolgáltatáshoz jelenleg nincs elérhető lelkész.</p>
 <% } else { %>
-<form method="post" id="booking-form" class="card" data-service="<%= service.id %>">
+<form method="post" id="booking-form" class="card" data-service="<%= service.id %>" data-group="<%= group ? group.slug : '' %>">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <% if (group) { %><input type="hidden" name="csoport" value="<%= group.slug %>"><% } %>
   <input type="hidden" name="start" id="start" value="<%= form.start || '' %>">
 
   <h2>1. Lelkész</h2>
   <div class="pastor-pick">
     <% if (pastors.length > 1) { %>
-      <label class="radio-card"><input type="radio" name="pastor" value="any" <%= !preselect ? 'checked' : '' %>> <span>Bármelyik lelkész</span></label>
+      <label class="radio-card"><input type="radio" name="pastor" value="any" <%= !preselect ? 'checked' : '' %>> <span>Bármelyik lelkész<% if (group) { %><small><%= group.name %></small><% } %></span></label>
     <% } %>
     <% pastors.forEach(function (p) { %>
       <label class="radio-card"><input type="radio" name="pastor" value="<%= p.id %>" <%= (preselect === p.id || pastors.length === 1) ? 'checked' : '' %>>
-        <span><%= p.name %><% if (p.title) { %><small><%= p.title %></small><% } %></span></label>
+        <span><%= p.name %><% if (p.title || p.congregation) { %><small><%= [p.title, p.congregation].filter(Boolean).join(' · ') %></small><% } %></span></label>
     <% }) %>
   </div>
 

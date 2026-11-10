@@ -1,0 +1,50 @@
+<%- include('../partials/header') %>
+<div class="row-between">
+  <h1>Csoportok</h1>
+  <a class="btn btn-primary" href="/admin/groups/new">+ Új csoport</a>
+</div>
+<p class="muted">Egy csoport (pl. gyülekezet vagy munkacsoport) saját foglalási linket kap. Aki ezt a linket
+  megnyitja, csak a csoport lelkészeinél foglalhat időpontot. A linket megoszthatja a gyülekezet honlapján,
+  hírlevélben vagy közösségi oldalon.</p>
+
+<% if (suggestions.length) { %>
+<div class="card todo">
+  <h3>Csoport létrehozása gyülekezetből</h3>
+  <p class="muted">Ezekhez a gyülekezetekhez még nincs csoport. Egy kattintással létrehozhatja, a gyülekezet lelkészei tagok lesznek.</p>
+  <div class="chips">
+    <% suggestions.forEach(function (c) { %>
+      <form method="post" action="/admin/groups/from-congregation" class="inline">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="hidden" name="congregation" value="<%= c.congregation %>">
+        <button class="chip chip-btn">+ <%= c.congregation %> (<%= c.n %> lelkész)</button>
+      </form>
+    <% }) %>
+  </div>
+</div>
+<% } %>
+
+<% if (!groups.length) { %>
+  <p class="muted">Még nincs csoport.</p>
+<% } %>
+<div class="grid">
+  <% groups.forEach(function (g) { %>
+    <div class="card group-card <%= g.active ? '' : 'inactive' %>">
+      <p class="eyebrow"><%= KINDS[g.kind] || 'Csoport' %><%= g.mine ? ' · tag vagyok' : '' %><%= g.active ? '' : ' · inaktív' %></p>
+      <h3><%= g.name %></h3>
+      <% if (g.description) { %><p class="meta"><%= g.description %></p><% } %>
+      <p class="meta">Lelkészek: <%= g.members.map(function (m) { return m.name; }).join(', ') || '–' %></p>
+      <% if (g.active) { %>
+        <div class="share">
+          <input readonly value="<%= g.url %>" aria-label="Megosztható link" onclick="this.select()">
+          <button type="button" class="btn btn-small" data-copy="<%= g.url %>">Másolás</button>
+        </div>
+      <% } %>
+      <div class="actions">
+        <% if (g.active) { %><a class="btn btn-small btn-ghost" href="<%= g.url %>" target="_blank">Megnyitás</a><% } %>
+        <% if (g.canEdit) { %><a class="btn btn-small btn-ghost" href="/admin/groups/<%= g.id %>">Szerkesztés</a><% } %>
+      </div>
+    </div>
+  <% }) %>
+</div>
+<script src="/admin.js"></script>
+<%- include('../partials/footer') %>

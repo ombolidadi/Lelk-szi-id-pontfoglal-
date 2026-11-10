@@ -39,6 +39,7 @@
     slotsEl.innerHTML = '<p class="muted">Szabad időpontok keresése…</p>';
     const q = new URLSearchParams({ service: serviceId, pastor: pastor(), days: '7' });
     if (from) q.set('from', from);
+    if (form.dataset.group) q.set('csoport', form.dataset.group);
     let data;
     try {
       const res = await fetch('/api/slots?' + q);

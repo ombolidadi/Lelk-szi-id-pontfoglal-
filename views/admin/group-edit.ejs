@@ -1,0 +1,47 @@
+<%- include('../partials/header') %>
+<p><a href="/admin/groups">← Csoportok</a></p>
+<h1><%= title %></h1>
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<% if (url && group.active) { %>
+<div class="card">
+  <h3>Megosztható foglalási link</h3>
+  <p class="muted">Ezen a linken csak a csoport lelkészeinek időpontjai foglalhatók.</p>
+  <div class="share">
+    <input readonly value="<%= url %>" aria-label="Megosztható link" onclick="this.select()">
+    <button type="button" class="btn btn-small" data-copy="<%= url %>">Másolás</button>
+    <a class="btn btn-small btn-ghost" href="<%= url %>" target="_blank">Megnyitás</a>
+  </div>
+</div>
+<% } %>
+
+<form method="post" action="/admin/groups/<%= group.id || 'new' %>" class="card">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <div class="form-grid">
+    <label>Név *<input name="name" required maxlength="120" value="<%= group.name || '' %>" placeholder="pl. Budavári Gyülekezet"></label>
+    <label>Típus<select name="kind">
+      <% Object.keys(KINDS).forEach(function (k) { %><option value="<%= k %>" <%= group.kind === k ? 'selected' : '' %>><%= KINDS[k] %></option><% }) %>
+    </select></label>
+    <label>Link-azonosító<input name="slug" value="<%= group.slug || '' %>" placeholder="automatikus a névből"></label>
+  </div>
+  <label>Leírás (a csoport foglalóoldalán jelenik meg)<textarea name="description" rows="3" maxlength="1000"><%= group.description || '' %></textarea></label>
+  <label class="check"><input type="checkbox" name="active" <%= group.active ? 'checked' : '' %>> Aktív (a link működik)</label>
+
+  <h3>Lelkészek a csoportban</h3>
+  <div class="chips">
+    <% pastors.forEach(function (p) { %>
+      <label class="check chip"><input type="checkbox" name="members" value="<%= p.id %>" <%= assigned.has(p.id) ? 'checked' : '' %>>
+        <%= p.name %><% if (p.congregation) { %> <small class="muted">(<%= p.congregation %>)</small><% } %></label>
+    <% }) %>
+  </div>
+  <div class="actions"><button class="btn btn-primary">Mentés</button></div>
+</form>
+
+<% if (group.id) { %>
+<form method="post" action="/admin/groups/<%= group.id %>/delete" onsubmit="return confirm('Biztosan törli a csoportot? A megosztott link ezután nem működik.')">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <button class="btn btn-danger">Csoport törlése</button>
+</form>
+<% } %>
+<script src="/admin.js"></script>
+<%- include('../partials/footer') %>

@@ -10,6 +10,8 @@ Online időpontfoglaló alkalmazás gyülekezeteknek, **több lelkész** számá
   - kiválaszthatja, **melyik naptárba** kerüljenek az új foglalások;
   - a foglaló opcionálisan Google Naptár-meghívót kap; lemondáskor az esemény törlődik.
 - **Több szolgáltatás** (pl. lelkigondozói beszélgetés, keresztelő, jegyesoktatás, temetés) – egyedi időtartammal, szünettel, helyszínnel, színnel; szolgáltatásonként megadható, mely lelkészeknél foglalható.
+- **Lelkészi csoportok** (gyülekezet, munkacsoport, egyéb) – minden csoport **saját megosztható linket** kap (`/csoport/<azonosító>`), amelyen **csak a csoport lelkészeinek** időpontjai foglalhatók. Egy lelkész több csoportnak is tagja lehet. Csoportot bármely lelkész létrehozhat; szerkeszteni a tagok és az adminisztrátorok tudják.
+- **Gyülekezet a lelkészhez** – megjelenik a foglalóoldalon és a visszaigazolásban; a gyülekezetekből egy kattintással csoport készíthető.
 - **Nyilvános foglalóoldal** – szolgáltatás → lelkész (vagy „bármelyik lelkész”) → heti nézetben szabad időpont → adatok. Mobilbarát.
 - **Lemondás** linkkel a foglaló részéről, illetve a lelkészi felületről.
 - Opcionális **e-mail értesítés** (SMTP) a foglalónak és a lelkésznek.
@@ -56,6 +58,7 @@ Fontos környezeti változók: `BASE_URL` (https-sel!), `SESSION_SECRET`, `GOOGL
 | `src/server.js` | Express alkalmazás, munkamenet, CSRF |
 | `src/db.js` | SQLite séma és beállítások |
 | `src/google.js` | Google OAuth, naptárlista, freeBusy, esemény létrehozás/törlés |
+| `src/groups.js` | Csoportok segédfüggvényei |
 | `src/slots.js` | Szabad időpontok számítása |
 | `src/bookings.js` | Foglalás és lemondás |
 | `src/routes/public.js` | Nyilvános oldalak és `/api/slots` |

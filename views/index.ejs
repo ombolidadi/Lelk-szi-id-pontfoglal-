@@ -1,7 +1,13 @@
 <%- include('partials/header') %>
 <section class="hero">
-  <h1>Időpontfoglalás</h1>
-  <p><%= settings.org_intro %></p>
+  <% if (group) { %>
+    <p class="eyebrow"><%= KINDS[group.kind] || 'Csoport' %></p>
+    <h1><%= group.name %></h1>
+    <p><%= group.description || 'Foglaljon időpontot a csoport lelkészeihez.' %></p>
+  <% } else { %>
+    <h1>Időpontfoglalás</h1>
+    <p><%= settings.org_intro %></p>
+  <% } %>
 </section>
 
 <h2>Válasszon szolgáltatást</h2>
@@ -10,7 +16,7 @@
 <% } %>
 <div class="grid">
   <% services.forEach(function (s) { %>
-    <a class="card service-card" href="/szolgaltatas/<%= s.slug %>" style="--accent: <%= s.color %>">
+    <a class="card service-card" href="/szolgaltatas/<%= s.slug %><%= q %>" style="--accent: <%= s.color %>">
       <h3><%= s.name %></h3>
       <% if (s.description) { %><p><%= s.description %></p><% } %>
       <p class="meta"><%= s.duration_min %> perc<% if (s.location) { %> · <%= s.location %><% } %></p>
@@ -20,16 +26,16 @@
 </div>
 
 <% if (pastors.length) { %>
-<h2>Lelkészeink</h2>
+<h2><%= group ? 'A csoport lelkészei' : 'Lelkészeink' %></h2>
 <div class="grid">
   <% pastors.forEach(function (p) { %>
     <div class="card">
       <h3><%= p.name %></h3>
-      <% if (p.title) { %><p class="meta"><%= p.title %></p><% } %>
+      <% if (p.title || p.congregation) { %><p class="meta"><%= [p.title, p.congregation].filter(Boolean).join(' · ') %></p><% } %>
       <% if (p.bio) { %><p><%= p.bio %></p><% } %>
       <div class="chips">
         <% services.filter(function (s) { return pastorServices.some(function (ps) { return ps.user_id === p.id && ps.service_id === s.id; }); }).forEach(function (s) { %>
-          <a class="chip" href="/szolgaltatas/<%= s.slug %>?lelkesz=<%= p.id %>"><%= s.name %></a>
+          <a class="chip" href="/szolgaltatas/<%= s.slug %><%= q ? q + '&' : '?' %>lelkesz=<%= p.id %>"><%= s.name %></a>
         <% }) %>
       </div>
     </div>

@@ -148,3 +148,13 @@ tr.cancelled td { opacity: .55; }
 .week-nav .btn { white-space: nowrap; }
 .week-nav strong { text-align: center; }
 @media (max-width: 420px) { .week-nav .btn { padding: .5rem .7rem; } .week-nav strong { font-size: .9rem; } }
+.eyebrow { text-transform: uppercase; letter-spacing: .06em; font-size: .78rem; font-weight: 600; color: var(--primary); margin: 0 0 .2rem; }
+.share { display: flex; gap: .4rem; align-items: center; margin: .6rem 0; }
+.share input { margin-top: 0 !important; font-size: .88rem; min-width: 0; flex: 1; }
+.group-card { display: flex; flex-direction: column; gap: .2rem; }
+.group-card.inactive { opacity: .6; }
+.chip-btn { border: 1px dashed var(--primary); cursor: pointer; font: inherit; font-size: .9rem; }
+.congr-form { display: flex; gap: .3rem; align-items: center; }
+.congr-form input { margin-top: 0 !important; padding: .3rem .5rem !important; font-size: .9rem; min-width: 140px; }
+.full-row { grid-column: 1 / -1; margin-bottom: .9rem; }
+.label { font-weight: 500; margin: 0 0 .3rem; }

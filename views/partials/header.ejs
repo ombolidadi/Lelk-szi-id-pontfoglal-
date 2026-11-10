@@ -30,6 +30,7 @@
     <a href="/admin/availability" class="<%= path.startsWith('/admin/availability') ? 'active' : '' %>">Elérhetőség</a>
     <a href="/admin/google" class="<%= path.startsWith('/admin/google') ? 'active' : '' %>">Google naptár</a>
     <a href="/admin/services" class="<%= path.startsWith('/admin/services') ? 'active' : '' %>">Szolgáltatások</a>
+    <a href="/admin/groups" class="<%= path.startsWith('/admin/groups') ? 'active' : '' %>">Csoportok</a>
     <% if (currentUser.role === 'admin') { %>
       <a href="/admin/pastors" class="<%= path.startsWith('/admin/pastors') ? 'active' : '' %>">Lelkészek</a>
       <a href="/admin/settings" class="<%= path.startsWith('/admin/settings') ? 'active' : '' %>">Beállítások</a>

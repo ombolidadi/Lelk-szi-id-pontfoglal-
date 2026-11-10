@@ -4,6 +4,7 @@
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <label>Név<input name="name" required value="<%= user.name %>"></label>
   <label>Megnevezés (pl. „parókus lelkész”)<input name="title" value="<%= user.title %>"></label>
+  <label>Gyülekezet<input name="congregation" maxlength="120" value="<%= user.congregation || '' %>" placeholder="pl. Budavári Református Gyülekezet"></label>
   <label>Rövid bemutatkozás<textarea name="bio" rows="4"><%= user.bio %></textarea></label>
   <label>E-mail cím (belépéshez és értesítésekhez)<input name="email" type="email" required value="<%= user.email %>"></label>
   <h3>Jelszócsere</h3>
