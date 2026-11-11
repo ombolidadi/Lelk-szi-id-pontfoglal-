@@ -18,14 +18,12 @@ Online időpontfoglaló alkalmazás gyülekezeteknek, **több lelkész** számá
 A teljes alkalmazás WordPress-bővítményként is elérhető: `wordpress-plugin/lelkeszi-idopontfoglalo.zip`
 (forráskód: `wordpress-plugin/lelkeszi-idopontfoglalo/`).
 
-- **Kipróbálás a böngészőben (WordPress Playground), telepítés nélkül:**
-  https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/blueprint.json
-  (a repónak nyilvánosnak kell lennie).
-- **Lelkészi felület a Playgroundban (bejelentkezve Kiss Péterként):**
-  https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/blueprint-lelkesz.json
-  Belépés máskor: `wp-admin` → `admin` / `password` (webhely-admin), lelkészek: `kiss.peter`, `nagy.anna`, `toth.gabor`, foglaló: `elek@demo.hu` – jelszó mind `demo1234`.
+- **Kipróbálás a böngészőben (WordPress Playground), telepítés nélkül** – a linkek verziószámot tartalmaznak, ezért mindig a friss változat töltődik be (a `wordpress-plugin/build.sh` írja ki őket):
+  - Foglalóoldal: https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/blueprint.json?v=2.0.0
+  - Lelkészi felület (bejelentkezve Kiss Péterként): https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/blueprint-lelkesz.json?v=2.0.0
+  - Belépések: lelkészek `kiss.peter@demo.hu`, `nagy.anna@demo.hu`, `toth.gabor@demo.hu`, foglaló `elek@demo.hu` – jelszó mind `demo1234`.
 - **Telepítés éles oldalra:** Bővítmények → Új hozzáadása → Bővítmény feltöltése → a `.zip` → Bekapcsolás. Részletek: `wordpress-plugin/lelkeszi-idopontfoglalo/readme.txt`.
-- Nyilvános oldalak: `/idopont/<csoport-link>/`; lelkészi felület: WordPress admin → „Időpontfoglaló” menü.
+- Nyilvános oldalak: `/idopont/<csoport-link>/`; **lelkészi felület: `/idopont/lelkeszi/`** – önálló oldal saját belépővel, nem a WordPress admin.
 
 ## Kipróbálás bemutató adatokkal
 

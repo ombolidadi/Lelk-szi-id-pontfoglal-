@@ -43,8 +43,8 @@ add_filter( 'login_redirect', function ( $to, $requested, $user ) {
 		if ( lif_is_client_only( $user ) ) {
 			return lif_url( '/fiok' );
 		}
-		if ( $user->has_cap( 'lif_pastor' ) && ! $user->has_cap( 'edit_posts' ) ) {
-			return admin_url( 'admin.php?page=lif' );
+		if ( lif_is_pastor_only( $user ) ) {
+			return lif_portal_url();
 		}
 	}
 	return $to;
@@ -102,7 +102,7 @@ function lif_redirect( $url ) {
 /** Teljes oldal kirajzolása a bővítmény saját, témától független elrendezésével. */
 function lif_render( $template, $vars = array(), $title = '', $status = 200 ) {
 	status_header( $status );
-	$vars  = array_merge( array( 'group' => null ), $vars );
+	$vars  = array_merge( array( 'group' => null, 'portal' => 0 === strpos( $template, 'portal' ), 'portal_sub' => null ), $vars );
 	$flash = lif_take_flash();
 	$user  = wp_get_current_user();
 	$org   = lif_setting( 'org_name' );
@@ -127,6 +127,9 @@ function lif_dispatch( $path ) {
 	}
 	if ( 'adatkezeles' === $a ) {
 		return lif_render( 'privacy', array(), 'Adatkezelési tájékoztató' );
+	}
+	if ( 'lelkeszi' === $a ) {
+		return lif_route_portal( $seg[1] ?? '' );
 	}
 	if ( 'fiok' === $a ) {
 		return lif_route_account( $seg[1] ?? '' );
@@ -580,7 +583,7 @@ function lif_route_account_dashboard( $user ) {
 function lif_route_2fa_setup( $user ) {
 	$error = null;
 	$codes = null;
-	$back  = $user->has_cap( 'lif_pastor' ) ? admin_url( 'admin.php?page=lif-profile' ) : lif_url( '/fiok' );
+	$back  = $user->has_cap( 'lif_pastor' ) ? lif_portal_url( 'profil' ) : lif_url( '/fiok' );
 	if ( lif_is_post() ) {
 		lif_check_nonce();
 		$key = '2fa-setup:' . $user->ID;
@@ -614,7 +617,8 @@ function lif_route_2fa_setup( $user ) {
 		);
 	}
 	$backup_left = lif_2fa_backup_left( $user->ID );
-	lif_render( 'twofactor-setup', compact( 'enabled', 'setup', 'codes', 'error', 'back', 'backup_left' ), 'Kétfaktoros hitelesítés', $error ? 400 : 200 );
+	$portal = $user->has_cap( 'lif_pastor' );
+	lif_render( 'twofactor-setup', compact( 'enabled', 'setup', 'codes', 'error', 'back', 'backup_left', 'portal' ), 'Kétfaktoros hitelesítés', $error ? 400 : 200 );
 }
 
 function lif_route_2fa_verify() {
@@ -674,7 +678,7 @@ function lif_route_invite( $token ) {
 			if ( $existing ) {
 				wp_set_password( $pw, $existing->ID );
 				lif_flash( 'success', 'Új jelszava beállítva. Most már beléphet.' );
-				lif_redirect( wp_login_url( admin_url( 'admin.php?page=lif' ) ) );
+				lif_redirect( lif_portal_url( 'belepes' ) );
 			}
 			$login = sanitize_user( strstr( $invite->email, '@', true ), true );
 			$login = $login ? $login : 'lelkesz';
@@ -708,7 +712,8 @@ function lif_route_invite( $token ) {
 					$wpdb->replace( lif_t( 'pastor_services' ), array( 'user_id' => $uid, 'service_id' => (int) $sid ) );
 				}
 				wp_set_auth_cookie( $uid, false, is_ssl() );
-				lif_redirect( admin_url( 'admin.php?page=lif&lif_welcome=1' ) );
+				lif_flash( 'success', 'Üdvözöljük! Javasoljuk, hogy a Profilom oldalon kapcsolja be a kétfaktoros hitelesítést, és kösse be a Google naptárát.' );
+				lif_redirect( lif_portal_url() );
 			}
 		}
 	}
@@ -720,21 +725,20 @@ function lif_route_invite( $token ) {
 function lif_route_google_callback() {
 	$user = wp_get_current_user();
 	if ( ! $user->exists() || ! $user->has_cap( 'lif_pastor' ) ) {
-		lif_redirect( wp_login_url() );
+		lif_redirect( lif_portal_url( 'belepes' ) );
 	}
-	$back     = admin_url( 'admin.php?page=lif-google' );
 	$expected = get_user_meta( $user->ID, 'lif_oauth_state', true );
 	delete_user_meta( $user->ID, 'lif_oauth_state' );
 	if ( ! empty( $_GET['error'] ) ) {
-		lif_redirect( add_query_arg( 'lif_msg', rawurlencode( 'A Google hozzáférés megszakadt.' ), $back ) );
+		lif_portal_back( 'google', 'A Google hozzáférés megszakadt.', array(), true );
 	}
 	$state = sanitize_text_field( wp_unslash( $_GET['state'] ?? '' ) );
 	$code  = sanitize_text_field( wp_unslash( $_GET['code'] ?? '' ) );
 	if ( ! $code || ! $state || ! hash_equals( (string) $expected, $state ) ) {
-		lif_redirect( add_query_arg( 'lif_msg', rawurlencode( 'Érvénytelen Google válasz. Próbálja újra.' ), $back ) );
+		lif_portal_back( 'google', 'Érvénytelen Google válasz. Próbálja újra.', array(), true );
 	}
 	$r = lif_google_connect( $user->ID, $code );
-	lif_redirect( add_query_arg( 'lif_msg', rawurlencode( is_wp_error( $r ) ? $r->get_error_message() : 'Google fiók csatlakoztatva. Válassza ki, mely naptárakat vegyük figyelembe!' ), $back ) );
+	lif_portal_back( 'google', is_wp_error( $r ) ? $r->get_error_message() : 'Google fiók csatlakoztatva. Válassza ki, mely naptárakat vegyük figyelembe!', array(), is_wp_error( $r ) );
 }
 
 /* ---------- Naptár-feliratkozás (ICS) ---------- */

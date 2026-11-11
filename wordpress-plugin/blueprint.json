@@ -1,8 +1,16 @@
 {
   "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "meta": {
+    "title": "Lelkészi Időpontfoglaló 2.0.0"
+  },
   "landingPage": "/idopont/budavari-gyulekezet-x7k2q/",
-  "preferredVersions": { "php": "8.2", "wp": "latest" },
-  "features": { "networking": true },
+  "preferredVersions": {
+    "php": "8.2",
+    "wp": "latest"
+  },
+  "features": {
+    "networking": true
+  },
   "steps": [
     {
       "step": "setSiteOptions",
@@ -16,9 +24,11 @@
       "step": "installPlugin",
       "pluginData": {
         "resource": "url",
-        "url": "https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/lelkeszi-idopontfoglalo.zip"
+        "url": "https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/lelkeszi-idopontfoglalo.zip?v=2.0.0"
       },
-      "options": { "activate": true }
+      "options": {
+        "activate": true
+      }
     },
     {
       "step": "runPHP",

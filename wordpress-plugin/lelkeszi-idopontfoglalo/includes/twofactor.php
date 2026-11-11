@@ -143,7 +143,7 @@ function lif_2fa_finish_login( $data ) {
 	if ( $data['redirect'] ) {
 		return $data['redirect'];
 	}
-	return user_can( $user, 'lif_pastor' ) ? admin_url( 'admin.php?page=lif' ) : lif_url( '/fiok' );
+	return user_can( $user, 'lif_pastor' ) ? lif_portal_url() : lif_url( '/fiok' );
 }
 
 /** Kétfaktoros felhasználók nem léphetnek be jelszóval XML-RPC-n vagy alkalmazásjelszóval (megkerülné a kódot). */

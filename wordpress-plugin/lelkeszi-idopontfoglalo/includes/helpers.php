@@ -16,7 +16,7 @@ function lif_kind_label( $kind ) {
 }
 
 const LIF_WEEKDAYS = array( 1 => 'Hétfő', 2 => 'Kedd', 3 => 'Szerda', 4 => 'Csütörtök', 5 => 'Péntek', 6 => 'Szombat', 7 => 'Vasárnap' );
-const LIF_RESERVED = array( 'fiok', 'foglalas', 'naptar', 'meghivo', 'ellenorzes', 'google-visszahivas', 'adatkezeles' );
+const LIF_RESERVED = array( 'lelkeszi', 'fiok', 'foglalas', 'naptar', 'meghivo', 'ellenorzes', 'google-visszahivas', 'adatkezeles' );
 
 function lif_default_settings() {
 	return array(

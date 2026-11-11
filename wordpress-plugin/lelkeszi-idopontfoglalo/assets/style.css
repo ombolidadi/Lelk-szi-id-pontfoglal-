@@ -193,3 +193,12 @@ tr.cancelled td { opacity: .55; }
 .summary p { margin: .2rem 0 0; font-weight: 600; }
 .register-offer { border: 1px dashed var(--border); border-radius: 8px; padding: .8rem 1rem; margin-bottom: 1rem; }
 .register-offer .form-grid { margin-top: .8rem; }
+/* Lelkészi felület */
+.lif-portal .subnav { position: sticky; top: 0; z-index: 5; }
+.congr-form { display: flex; gap: .3rem; align-items: center; }
+.congr-form input { margin-top: 0 !important; padding: .3rem .5rem !important; font-size: .9rem; min-width: 140px; }
+.group-card { display: flex; flex-direction: column; gap: .3rem; }
+.chip-btn { border: 1px dashed var(--primary); cursor: pointer; font: inherit; font-size: .9rem; }
+.full-row { grid-column: 1 / -1; }
+.label { font-weight: 500; margin: 0 0 .3rem; }
+.tabs .spacer { flex: 1; }
