@@ -27,7 +27,6 @@ base_steps = [
 def bp(landing, extra=()):
     return {
         "$schema": "https://playground.wordpress.net/blueprint-schema.json",
-        "meta": {"title": f"Lelkészi Időpontfoglaló {version}"},
         "landingPage": landing,
         "preferredVersions": {"php": "8.2", "wp": "latest"},
         "features": {"networking": True},

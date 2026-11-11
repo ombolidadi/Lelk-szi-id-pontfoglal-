@@ -1,8 +1,5 @@
 {
   "$schema": "https://playground.wordpress.net/blueprint-schema.json",
-  "meta": {
-    "title": "Lelkészi Időpontfoglaló 2.0.0"
-  },
   "landingPage": "/idopont/lelkeszi/",
   "preferredVersions": {
     "php": "8.2",
@@ -24,7 +21,7 @@
       "step": "installPlugin",
       "pluginData": {
         "resource": "url",
-        "url": "https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/lelkeszi-idopontfoglalo.zip?v=2.0.0"
+        "url": "https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/lelkeszi-idopontfoglalo.zip?v=2.0.1"
       },
       "options": {
         "activate": true
