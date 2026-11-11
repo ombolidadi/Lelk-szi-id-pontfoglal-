@@ -13,6 +13,17 @@ Online időpontfoglaló alkalmazás gyülekezeteknek, **több lelkész** számá
 - **Több szolgáltatás** egyedi időtartammal, szünettel, helyszínnel; szolgáltatásonként megadható, mely lelkészeknél foglalható.
 - Opcionális **e-mail értesítés** (SMTP) – foglalás, lemondás, meghívó.
 
+## WordPress-bővítmény
+
+A teljes alkalmazás WordPress-bővítményként is elérhető: `wordpress-plugin/lelkeszi-idopontfoglalo.zip`
+(forráskód: `wordpress-plugin/lelkeszi-idopontfoglalo/`).
+
+- **Kipróbálás a böngészőben (WordPress Playground), telepítés nélkül:**
+  https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/blueprint.json
+  (a repónak nyilvánosnak kell lennie). Belépés: `wp-admin` → `admin` / `password` (webhely-admin), lelkészek: `kiss.peter`, `nagy.anna`, `toth.gabor`, foglaló: `elek@demo.hu` – jelszó mind `demo1234`.
+- **Telepítés éles oldalra:** Bővítmények → Új hozzáadása → Bővítmény feltöltése → a `.zip` → Bekapcsolás. Részletek: `wordpress-plugin/lelkeszi-idopontfoglalo/readme.txt`.
+- Nyilvános oldalak: `/idopont/<csoport-link>/`; lelkészi felület: WordPress admin → „Időpontfoglaló” menü.
+
 ## Kipróbálás bemutató adatokkal
 
 ```bash
