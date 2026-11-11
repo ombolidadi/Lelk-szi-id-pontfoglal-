@@ -37,6 +37,19 @@
   function renderPastors() {
     var list = $('pastor-list');
     list.innerHTML = '';
+    // Ha a csoportban egyetlen lelkész van, csak ő jelenik meg, előre kiválasztva – nincs mit választani.
+    if (D.pastors.length === 1) {
+      var only = D.pastors[0];
+      var t = $('step-pastor').querySelector('h2');
+      t.lastChild.textContent = ' Lelkész';
+      var card = el('div', 'choice single');
+      card.setAttribute('aria-pressed', 'true');
+      card.appendChild(el('strong', null, only.name));
+      if (only.meta) card.appendChild(el('small', null, only.meta));
+      if (only.bio) card.appendChild(el('span', 'bio', only.bio));
+      list.appendChild(card);
+      return;
+    }
     var options = D.pastors.slice();
     if (D.pastors.length > 1) options.unshift({ id: 'any', name: 'Bármelyik lelkész', meta: 'Az első szabad időpont bárkinél a csoportból' });
     options.forEach(function (p) {

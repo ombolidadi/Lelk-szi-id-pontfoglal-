@@ -202,3 +202,45 @@ tr.cancelled td { opacity: .55; }
 .full-row { grid-column: 1 / -1; }
 .label { font-weight: 500; margin: 0 0 .3rem; }
 .tabs .spacer { flex: 1; }
+.choice.single { cursor: default; }
+/* Naptárnézet */
+.cal-toolbar { display: flex; justify-content: space-between; align-items: center; gap: .8rem; flex-wrap: wrap; margin-bottom: .6rem; }
+.cal-range { margin-left: .4rem; }
+.cal-who label { display: flex; gap: .5rem; align-items: center; margin: 0; }
+.cal-who select { margin-top: 0 !important; width: auto !important; }
+.cal-help { margin: .2rem 0 .6rem; }
+.cal-legend { display: flex; flex-wrap: wrap; gap: .4rem 1rem; font-size: .85rem; color: var(--muted); margin-bottom: .8rem; }
+.cal-legend .lg::before { content: ""; display: inline-block; width: .9rem; height: .9rem; border-radius: 3px; margin-right: .35rem; vertical-align: -2px; border: 1px solid var(--border); }
+.lg-avail::before { background: var(--cal-avail); }
+.lg-booking::before { background: var(--primary); }
+.lg-block::before { background: var(--cal-block); }
+.lg-gbusy::before { background: repeating-linear-gradient(45deg, var(--cal-gbusy) 0 3px, transparent 3px 6px); }
+.lg-off::before { background: var(--cal-off); }
+:root { --cal-avail: #e7f1ea; --cal-block: #f3e3c4; --cal-gbusy: #b8c2c8; --cal-off: #efe6e6; }
+@media (prefers-color-scheme: dark) { :root { --cal-avail: #20342a; --cal-block: #4a3b1f; --cal-gbusy: #56626a; --cal-off: #3b2a2a; } }
+.cal-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.cal { display: grid; grid-template-columns: 56px repeat(7, minmax(108px, 1fr)); min-width: 820px; }
+.cal-corner, .cal-dayhead { position: sticky; top: 0; z-index: 3; background: var(--surface); border-bottom: 1px solid var(--border); }
+.cal-dayhead { text-align: center; padding: .5rem .2rem; border-left: 1px solid var(--border); }
+.cal-dayhead span { display: block; font-weight: 600; font-size: .88rem; text-transform: capitalize; }
+.cal-dayhead small { color: var(--muted); }
+.cal-dayhead.today span { color: var(--primary); }
+.cal-times { position: relative; height: var(--cal-h); }
+.cal-times span { position: absolute; right: 6px; transform: translateY(-50%); font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cal-times span:first-child { transform: none; }
+.cal-day { position: relative; height: var(--cal-h); border-left: 1px solid var(--border); cursor: cell; }
+.cal-day.is-off { background: var(--cal-off); }
+.cal-line { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border); opacity: .6; pointer-events: none; }
+.cal-avail { position: absolute; left: 0; right: 0; background: var(--cal-avail); pointer-events: none; }
+.cal-gbusy { position: absolute; left: 0; right: 0; background: repeating-linear-gradient(45deg, var(--cal-gbusy) 0 3px, transparent 3px 7px); opacity: .55; pointer-events: none; }
+.cal-offlabel { position: absolute; top: 4px; left: 4px; right: 4px; font-size: .75rem; color: var(--error-text); text-align: center; pointer-events: none; }
+.cal-ev { position: absolute; left: 3px; right: 3px; z-index: 2; overflow: hidden; text-align: left; padding: 2px 5px; border-radius: 5px; font: inherit; font-size: .78rem; line-height: 1.25; cursor: pointer; border: 0; }
+.cal-ev small { display: block; opacity: .85; }
+.cal-ev b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.cal-booking { background: var(--primary); color: var(--surface); border-left: 4px solid var(--accent, var(--primary)); }
+.cal-block { background: var(--cal-block); color: var(--text); border-left: 4px solid #b58a2e; }
+.cal-ev:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+.cal-dlg { width: min(640px, calc(100vw - 32px)); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; background: var(--surface); color: var(--text); }
+.cal-dlg::backdrop { background: rgba(0,0,0,.35); }
+.cal-dlg h2 { margin: 0; }
+.cal-dlg .tabs { margin: .6rem 0 1rem; }

@@ -75,9 +75,14 @@ function lif_db_busy( $user_id, $from_ts, $to_ts, $exclude_id = 0 ) {
 		'SELECT start_utc, end_utc FROM ' . lif_t( 'bookings' ) . " WHERE user_id = %d AND status = 'confirmed' AND start_utc < %s AND end_utc > %s AND id != %d",
 		$user_id, lif_iso( $to_ts ), lif_iso( $from_ts ), $exclude_id
 	) );
+	// A lelkész által a naptárban felvett szünetek is foglaltnak számítanak.
+	$blocks = $wpdb->get_results( $wpdb->prepare(
+		'SELECT start_utc, end_utc FROM ' . lif_t( 'blocks' ) . ' WHERE user_id = %d AND start_utc < %s AND end_utc > %s',
+		$user_id, lif_iso( $to_ts ), lif_iso( $from_ts )
+	) );
 	return array_map( function ( $r ) {
 		return array( strtotime( $r->start_utc ), strtotime( $r->end_utc ) );
-	}, $rows );
+	}, array_merge( $rows, $blocks ) );
 }
 
 /**

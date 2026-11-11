@@ -10,6 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const LIF_PORTAL_PAGES = array(
 	''               => array( 'Foglalások', 'lif_pastor' ),
+	'naptar'         => array( 'Naptár', 'lif_pastor' ),
 	'elerhetoseg'    => array( 'Elérhetőség', 'lif_pastor' ),
 	'google'         => array( 'Google naptár', 'lif_pastor' ),
 	'szolgaltatasok' => array( 'Szolgáltatások', 'lif_pastor' ),
@@ -82,6 +83,7 @@ function lif_route_portal( $sub ) {
 	}
 	$pages = array(
 		''               => 'lif_pp_bookings',
+		'naptar'         => 'lif_pp_calendar',
 		'elerhetoseg'    => 'lif_pp_availability',
 		'google'         => 'lif_pp_google',
 		'szolgaltatasok' => 'lif_pp_services',
@@ -573,11 +575,16 @@ function lif_portal_handle( $sub, $do ) {
 		}
 	};
 
+	lif_calendar_handle( $do ); // a naptár saját műveletei (ha az övé, ott véget ér)
+
 	switch ( $do ) {
 		case 'cancel_booking':
 			$b = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . lif_t( 'bookings' ) . ' WHERE id = %d', (int) $p( 'id' ) ) );
 			if ( $b && lif_can_manage_pastor( $b->user_id ) ) {
 				lif_cancel_booking( $b, 'pastor' );
+			}
+			if ( 'naptar' === $p( 'back', 20 ) ) {
+				lif_portal_back( 'naptar', 'A foglalást lemondta.', lif_cal_args( lif_cal_pastor_id(), lif_cal_monday() ) );
 			}
 			lif_portal_back( '', 'A foglalást lemondta.' );
 

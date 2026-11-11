@@ -64,6 +64,7 @@ function lif_seed_demo() {
 	$groups = array(
 		array( 'Budavári Gyülekezet', 'budavari-gyulekezet-x7k2q', 'gyulekezet', '', array( $ids[0], $ids[1] ) ),
 		array( 'Ifjúsági munkacsoport', 'ifjusagi-munkacsoport-m4p9z', 'munkacsoport', 'Ifjúsági lelkigondozás és beszélgetések.', array( $ids[1], $ids[2] ) ),
+		array( 'Pesti Gyülekezet', 'pesti-gyulekezet-q3w8e', 'gyulekezet', '', array( $ids[2] ) ),
 	);
 	foreach ( $groups as $g ) {
 		$wpdb->insert( lif_t( 'groups' ), array( 'name' => $g[0], 'slug' => $g[1], 'kind' => $g[2], 'description' => $g[3], 'active' => 1 ) );
@@ -82,5 +83,18 @@ function lif_seed_demo() {
 		) );
 		update_user_meta( $cid, 'lif_calendar_token', lif_random( 24 ) );
 	}
+	// Példa a naptárnézethez: Kiss Péternél a következő munkanapon egy foglalás és egy szünet.
+	$day = lif_now()->modify( '+1 day' );
+	while ( (int) $day->format( 'N' ) > 5 ) {
+		$day = $day->modify( '+1 day' );
+	}
+	$at = function ( $hm ) use ( $day ) {
+		return ( new DateTimeImmutable( $day->format( 'Y-m-d' ) . ' ' . $hm, lif_tz() ) )->getTimestamp();
+	};
+	$svc = $wpdb->get_row( 'SELECT * FROM ' . lif_t( 'services' ) . " WHERE slug = 'lelkigondozoi-beszelgetes'" );
+	if ( $svc ) {
+		lif_insert_booking( $svc, $ids[0], $at( '10:00' ), $at( '11:00' ), array( 'name' => 'Példa Pál (példa)', 'email' => '', 'phone' => '+36 30 000 0000', 'note' => 'Példafoglalás a naptárnézethez.' ), null, null, false );
+	}
+	$wpdb->insert( lif_t( 'blocks' ), array( 'user_id' => $ids[0], 'start_utc' => lif_iso( $at( '12:00' ) ), 'end_utc' => lif_iso( $at( '13:30' ) ), 'note' => 'Ebéd (példa)' ) );
 	update_option( 'lif_demo_seeded', 1 );
 }

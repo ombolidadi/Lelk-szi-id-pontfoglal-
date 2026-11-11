@@ -63,6 +63,27 @@ function lif_create_booking( $service, $pastor_ids, $start_ts, $client, $client_
 		delete_option( $lock );
 		return new WP_Error( 'taken', 'Ez az időpont időközben betelt. Kérjük, válasszon másikat.' );
 	}
+	$booking = lif_insert_booking( $service, $pastor_id, $start_ts, $end_ts, $client, $client_id, $group, true );
+	delete_option( $lock );
+	return $booking;
+}
+
+/**
+ * Lelkész által a naptárból felvett foglalás. A heti elérhetőségtől függetlenül bármikor felvehető,
+ * csak meglévő foglalással vagy szünettel nem ütközhet.
+ */
+function lif_create_manual_booking( $service, $pastor_id, $start_ts, $client, $notify_client = true ) {
+	$end_ts = $start_ts + (int) $service->duration_min * 60;
+	if ( lif_db_busy( $pastor_id, $start_ts, $end_ts ) ) {
+		return new WP_Error( 'taken', 'Ebben az időpontban már van foglalás vagy szünet.' );
+	}
+	return lif_insert_booking( $service, $pastor_id, $start_ts, $end_ts, $client, null, null, false, $notify_client );
+}
+
+/** Foglalás beírása + Google Naptár-esemény + e-mail értesítések. */
+function lif_insert_booking( $service, $pastor_id, $start_ts, $end_ts, $client, $client_id, $group, $notify_pastor, $notify_client = true ) {
+	global $wpdb;
+	$t     = lif_t( 'bookings' );
 	$token = lif_random( 24 );
 	$wpdb->insert( $t, array(
 		'service_id'   => $service->id,
@@ -80,7 +101,6 @@ function lif_create_booking( $service, $pastor_ids, $start_ts, $client, $client_
 		'created_at'   => current_time( 'mysql', true ),
 	) );
 	$booking_id = (int) $wpdb->insert_id;
-	delete_option( $lock );
 
 	$pastor   = get_userdata( $pastor_id );
 	$settings = lif_settings();
@@ -101,7 +121,7 @@ function lif_create_booking( $service, $pastor_ids, $start_ts, $client, $client_
 		'end'            => $end_ts,
 		'attendee_email' => $client['email'], // üres, ha a vendég csak telefonszámot adott meg
 		'attendee_name'  => $client['name'],
-		'invite'         => ! empty( $settings['invite_client'] ),
+		'invite'         => $notify_client && ! empty( $settings['invite_client'] ),
 	) );
 	if ( is_wp_error( $ev ) ) {
 		error_log( '[lif] Google esemény létrehozása sikertelen: ' . $ev->get_error_message() );
@@ -115,11 +135,11 @@ function lif_create_booking( $service, $pastor_ids, $start_ts, $client, $client_
 	}
 
 	$when = lif_format_range( lif_iso( $start_ts ), lif_iso( $end_ts ) );
-	lif_mail( $client['email'], 'Időpontfoglalás visszaigazolása – ' . $service->name,
+	lif_mail( $notify_client ? $client['email'] : '', 'Időpontfoglalás visszaigazolása – ' . $service->name,
 		"Kedves {$client['name']}!\n\nIdőpontját rögzítettük.\n\nSzolgáltatás: {$service->name}\nLelkész: {$pastor->display_name}\nIdőpont: $when\n"
 		. ( $service->location ? "Helyszín: {$service->location}\n" : '' )
 		. "\nHa mégsem tud eljönni, itt lemondhatja: $link\n\nÁldás és békesség!\n{$settings['org_name']}" );
-	lif_mail( $pastor->user_email, 'Új foglalás: ' . $service->name . ' – ' . $client['name'],
+	lif_mail( $notify_pastor ? $pastor->user_email : '', 'Új foglalás: ' . $service->name . ' – ' . $client['name'],
 		"Új időpontfoglalás érkezett.\n\nSzolgáltatás: {$service->name}\nIdőpont: $when\nNév: {$client['name']}\n" . ( $client['email'] ? "E-mail: {$client['email']}\n" : '' )
 		. ( $client['phone'] ? "Telefon: {$client['phone']}\n" : '' ) . ( $client['note'] ? "Megjegyzés: {$client['note']}\n" : '' ) );
 

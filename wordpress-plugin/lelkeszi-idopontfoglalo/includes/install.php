@@ -20,6 +20,7 @@ function lif_tables() {
 		'invites'           => $p . 'invites',
 		'google_accounts'   => $p . 'google_accounts',
 		'google_calendars'  => $p . 'google_calendars',
+		'blocks'            => $p . 'blocks',
 	);
 }
 
@@ -143,6 +144,16 @@ function lif_install_tables() {
   last_error text NULL,
   PRIMARY KEY  (id),
   KEY user_id (user_id)
+) $c;" );
+
+	dbDelta( "CREATE TABLE {$t['blocks']} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  user_id bigint(20) unsigned NOT NULL,
+  start_utc varchar(25) NOT NULL,
+  end_utc varchar(25) NOT NULL,
+  note varchar(190) NOT NULL DEFAULT '',
+  PRIMARY KEY  (id),
+  KEY user_start (user_id,start_utc)
 ) $c;" );
 
 	dbDelta( "CREATE TABLE {$t['google_calendars']} (
