@@ -22,7 +22,7 @@
     <label>Típus<select name="kind">
       <% Object.keys(KINDS).forEach(function (k) { %><option value="<%= k %>" <%= group.kind === k ? 'selected' : '' %>><%= KINDS[k] %></option><% }) %>
     </select></label>
-    <label>Link-azonosító<input name="slug" value="<%= group.slug || '' %>" placeholder="automatikus a névből"></label>
+    <label>Link-azonosító<input name="slug" value="<%= group.slug || '' %>" placeholder="automatikus, véletlen végződéssel"></label>
   </div>
   <label>Leírás (a csoport foglalóoldalán jelenik meg)<textarea name="description" rows="3" maxlength="1000"><%= group.description || '' %></textarea></label>
   <label class="check"><input type="checkbox" name="active" <%= group.active ? 'checked' : '' %>> Aktív (a link működik)</label>

@@ -1,5 +1,14 @@
 <%- include('../partials/header') %>
 <h1>Profil</h1>
+<section class="card narrow">
+  <h3>Kétfaktoros hitelesítés</h3>
+  <% if (user.totp_enabled) { %>
+    <p>Bekapcsolva ✓ – belépéskor a jelszó mellett a hitelesítő alkalmazás kódját is kérjük.</p>
+  <% } else { %>
+    <p class="muted">Nincs bekapcsolva. Ajánlott: a jelszó mellé a telefonja is kell a belépéshez.</p>
+  <% } %>
+  <a class="btn" href="/admin/2fa"><%= user.totp_enabled ? 'Kezelés' : 'Bekapcsolás' %></a>
+</section>
 <form method="post" class="card narrow">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <label>Név<input name="name" required value="<%= user.name %>"></label>

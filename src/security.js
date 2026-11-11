@@ -57,4 +57,23 @@ function csrf(req, res, next) {
   next();
 }
 
-module.exports = { hashPassword, verifyPassword, randomToken, encrypt, decrypt, csrf };
+// Egyszerű, memóriában tartott próbálkozás-korlátozó (belépés, 2FA-kód).
+function createLimiter(max = 10, windowMs = 15 * 60_000) {
+  const map = new Map();
+  const get = (key) => {
+    const a = map.get(key);
+    if (!a || Date.now() - a.t > windowMs) return { n: 0, t: Date.now() };
+    return a;
+  };
+  return {
+    blocked: (key) => get(key).n >= max,
+    fail: (key) => { const a = get(key); a.n++; map.set(key, a); },
+    reset: (key) => map.delete(key),
+  };
+}
+
+function sha256(text) {
+  return crypto.createHash('sha256').update(String(text)).digest('hex');
+}
+
+module.exports = { hashPassword, verifyPassword, randomToken, encrypt, decrypt, csrf, createLimiter, sha256 };

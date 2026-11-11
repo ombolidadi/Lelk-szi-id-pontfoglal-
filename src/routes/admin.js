@@ -1,7 +1,9 @@
 const express = require('express');
 const { DateTime } = require('luxon');
 const { db, getSettings, setSetting } = require('../db');
-const { hashPassword, verifyPassword, randomToken } = require('../security');
+const { hashPassword, verifyPassword, randomToken, createLimiter, sha256 } = require('../security');
+const mfa = require('./mfa');
+const mailer = require('../mailer');
 const google = require('../google');
 const { cancelBooking } = require('../bookings');
 const { KINDS, slugify: groupSlug, uniqueSlug, isMember, groupUrl } = require('../groups');
@@ -66,7 +68,13 @@ router.post('/setup', (req, res) => {
 });
 
 // --- Bejelentkezés -------------------------------------------------------------
-const attempts = new Map();
+const loginLimiter = createLimiter(10, 15 * 60_000);
+function logInUser(req, res, id) {
+  req.session.userId = id;
+  req.session.csrf = randomToken(18);
+  res.redirect('/admin');
+}
+
 router.get('/login', (req, res) => {
   if (!hasUsers()) return res.redirect('/admin/setup');
   if (res.locals.currentUser) return res.redirect('/admin');
@@ -74,24 +82,93 @@ router.get('/login', (req, res) => {
 });
 
 router.post('/login', (req, res) => {
-  const ip = req.ip;
-  const a = attempts.get(ip) || { n: 0, t: Date.now() };
-  if (Date.now() - a.t > 15 * 60_000) { a.n = 0; a.t = Date.now(); }
-  if (a.n >= 10) return res.status(429).render('admin/login', { title: 'Bejelentkezés', error: 'Túl sok próbálkozás. Próbálja újra 15 perc múlva.' });
+  const key = `user:${req.ip}`;
+  if (loginLimiter.blocked(key)) return res.status(429).render('admin/login', { title: 'Bejelentkezés', error: 'Túl sok próbálkozás. Próbálja újra 15 perc múlva.' });
   const user = db.prepare('SELECT * FROM users WHERE email = ? AND active = 1').get(String(req.body.email || '').trim());
   if (!user || !verifyPassword(String(req.body.password || ''), user.password_hash)) {
-    a.n++; attempts.set(ip, a);
+    loginLimiter.fail(key);
     return res.status(401).render('admin/login', { title: 'Bejelentkezés', error: 'Hibás e-mail cím vagy jelszó.' });
   }
-  attempts.delete(ip);
-  req.session.userId = user.id;
+  loginLimiter.reset(key);
+  mfa.afterPassword(req, res, { kind: 'user', id: user.id, verifyPath: '/admin/login/2fa', done: logInUser });
+});
+
+mfa.verifyRoutes(router, { kind: 'user', path: '/admin/login/2fa', mount: '/admin', loginPath: '/admin/login', done: logInUser });
+
+router.post('/logout', (req, res) => {
+  delete req.session.userId;
+  delete req.session.mfa;
+  req.session.flash = { type: 'info', text: 'Kijelentkezett.' };
+  res.redirect('/admin/login');
+});
+
+// --- Meghívó: regisztráció csak meghívólinkkel ------------------------------------
+const INVITE_DAYS = 7;
+function findInvite(token) {
+  const inv = db.prepare('SELECT * FROM invites WHERE token_hash = ?').get(sha256(token));
+  if (!inv || inv.used_at || inv.expires_at < Date.now()) return null;
+  return inv;
+}
+function createInvite({ email, role = 'pastor', congregation = '', groupIds = [], userId = null, createdBy }) {
+  const token = randomToken(24);
+  // Egy címre egyszerre csak egy érvényes meghívó legyen
+  db.prepare('UPDATE invites SET expires_at = 0 WHERE email = ? AND used_at IS NULL').run(email);
+  db.prepare(`INSERT INTO invites(token_hash, email, role, congregation, group_ids, user_id, created_by, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(sha256(token), email, role, congregation, JSON.stringify(groupIds), userId, createdBy, Date.now() + INVITE_DAYS * 86400e3);
+  const base = (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+  return `${base}/admin/meghivo/${token}`;
+}
+
+router.get('/meghivo/:token', (req, res) => {
+  const inv = findInvite(req.params.token);
+  if (!inv) return res.status(404).render('error', { title: 'Érvénytelen meghívó', message: 'Ez a meghívólink lejárt vagy már felhasználták. Kérjen újat a gyülekezet adminisztrátorától.' });
+  const existing = inv.user_id ? db.prepare('SELECT name FROM users WHERE id = ?').get(inv.user_id) : null;
+  res.render('admin/invite', { title: existing ? 'Új jelszó beállítása' : 'Regisztráció', invite: inv, existing, error: null, form: {} });
+});
+
+router.post('/meghivo/:token', (req, res) => {
+  const inv = findInvite(req.params.token);
+  if (!inv) return res.status(404).render('error', { title: 'Érvénytelen meghívó', message: 'Ez a meghívólink lejárt vagy már felhasználták.' });
+  const existing = inv.user_id ? db.prepare('SELECT * FROM users WHERE id = ?').get(inv.user_id) : null;
+  const form = { name: String(req.body.name || '').trim().slice(0, 120), title: String(req.body.title || '').trim().slice(0, 120) };
+  const fail = (error) => res.status(400).render('admin/invite', { title: existing ? 'Új jelszó beállítása' : 'Regisztráció', invite: inv, existing, error, form });
+  const pw = String(req.body.password || '');
+  if (!existing && !form.name) return fail('Kérjük, adja meg a nevét.');
+  if (pw.length < 10) return fail('A jelszó legalább 10 karakter legyen.');
+  if (pw !== String(req.body.password2 || '')) return fail('A két jelszó nem egyezik.');
+  let userId;
+  try {
+    userId = db.transaction(() => {
+      db.prepare('UPDATE invites SET used_at = datetime(\'now\') WHERE id = ?').run(inv.id);
+      if (existing) {
+        db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(pw), existing.id);
+        return existing.id;
+      }
+      const id = db.prepare('INSERT INTO users(name, email, password_hash, role, congregation, title) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(form.name, inv.email, hashPassword(pw), inv.role === 'admin' ? 'admin' : 'pastor', inv.congregation || '', form.title).lastInsertRowid;
+      for (const gid of JSON.parse(inv.group_ids || '[]')) {
+        db.prepare('INSERT OR IGNORE INTO group_members(group_id, user_id) SELECT id, ? FROM groups WHERE id = ?').run(id, Number(gid));
+      }
+      const ins = db.prepare('INSERT INTO availability(user_id, weekday, start_time, end_time) VALUES (?, ?, ?, ?)');
+      for (let d = 1; d <= 5; d++) ins.run(id, d, '09:00', '16:00');
+      return id;
+    })();
+  } catch {
+    return fail('Ezzel az e-mail címmel már van fiók. Jelentkezzen be, vagy kérjen jelszó-visszaállító linket.');
+  }
+  req.session.userId = userId;
   req.session.csrf = randomToken(18);
+  flash(req, 'success', existing ? 'Új jelszava beállítva.' : 'Üdvözöljük! Javasoljuk, hogy kapcsolja be a kétfaktoros hitelesítést a Profil oldalon.');
   res.redirect('/admin');
 });
 
-router.post('/logout', (req, res) => { req.session = null; res.redirect('/'); });
-
 router.use(requireLogin);
+
+mfa.settingsRoutes(router, {
+  kind: 'user', base: '/admin', mount: '/admin', back: '/admin/profile', guard: (req, res, next) => next(),
+  idOf: (req, res) => res.locals.currentUser.id,
+});
 
 // --- Vezérlőpult: foglalások ----------------------------------------------------
 router.get('/', (req, res) => {
@@ -386,27 +463,34 @@ router.get('/pastors', requireAdmin, (req, res) => {
   const groups = db.prepare('SELECT * FROM groups ORDER BY name').all();
   const memberships = db.prepare('SELECT gm.user_id, g.name FROM group_members gm JOIN groups g ON g.id = gm.group_id ORDER BY g.name').all();
   const congregations = db.prepare("SELECT DISTINCT congregation FROM users WHERE congregation != '' ORDER BY congregation").all().map((r) => r.congregation);
-  res.render('admin/pastors', { title: 'Lelkészek', pastors, groups, memberships, congregations, created: req.session.createdPw || null });
-  delete req.session.createdPw;
+  const invites = db.prepare(`SELECT i.*, u.name AS user_name FROM invites i LEFT JOIN users u ON u.id = i.user_id
+    WHERE i.used_at IS NULL AND i.expires_at > ? ORDER BY i.created_at DESC`).all(Date.now());
+  const created = req.session.createdInvite || null;
+  delete req.session.createdInvite; // csak egyszer látható
+  res.render('admin/pastors', { title: 'Lelkészek', pastors, groups, memberships, congregations, invites, created });
 });
 
-router.post('/pastors', requireAdmin, (req, res) => {
-  const { name, email, role, congregation } = req.body;
-  if (!name || !email) { flash(req, 'error', 'A név és az e-mail cím kötelező.'); return res.redirect('/admin/pastors'); }
-  const password = req.body.password || randomToken(9);
-  try {
-    const id = db.prepare('INSERT INTO users(name, email, password_hash, role, congregation) VALUES (?, ?, ?, ?, ?)')
-      .run(name.trim(), email.trim(), hashPassword(password), role === 'admin' ? 'admin' : 'pastor',
-        String(congregation || '').trim().slice(0, 120)).lastInsertRowid;
-    for (const gid of [].concat(req.body.groups || []).map(Number)) {
-      db.prepare('INSERT OR IGNORE INTO group_members(group_id, user_id) SELECT id, ? FROM groups WHERE id = ?').run(id, gid);
-    }
-    const ins = db.prepare('INSERT INTO availability(user_id, weekday, start_time, end_time) VALUES (?, ?, ?, ?)');
-    for (let d = 1; d <= 5; d++) ins.run(id, d, '09:00', '16:00');
-    req.session.createdPw = { email: email.trim(), password };
-  } catch {
-    flash(req, 'error', 'Ez az e-mail cím már foglalt.');
-  }
+router.post('/pastors', requireAdmin, wrap(async (req, res) => {
+  const email = String(req.body.email || '').trim().slice(0, 200);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { flash(req, 'error', 'Adjon meg érvényes e-mail címet.'); return res.redirect('/admin/pastors'); }
+  if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(email)) { flash(req, 'error', 'Ezzel az e-mail címmel már van lelkészi fiók.'); return res.redirect('/admin/pastors'); }
+  const link = createInvite({
+    email,
+    role: req.body.role === 'admin' ? 'admin' : 'pastor',
+    congregation: String(req.body.congregation || '').trim().slice(0, 120),
+    groupIds: [].concat(req.body.groups || []).map(Number),
+    createdBy: res.locals.currentUser.id,
+  });
+  const org = getSettings().org_name;
+  await mailer.send(email, `Meghívó – ${org} időpontfoglaló`,
+    `Meghívást kapott a(z) ${org} lelkészi időpontfoglaló felületére.\n\nA regisztrációhoz nyissa meg ezt a linket (${INVITE_DAYS} napig érvényes, egyszer használható):\n${link}\n`);
+  req.session.createdInvite = { email, link, mailed: mailer.enabled(), reset: false };
+  res.redirect('/admin/pastors');
+}));
+
+router.post('/invites/:id/revoke', requireAdmin, (req, res) => {
+  db.prepare('UPDATE invites SET expires_at = 0 WHERE id = ? AND used_at IS NULL').run(Number(req.params.id));
+  flash(req, 'info', 'Meghívó visszavonva.');
   res.redirect('/admin/pastors');
 });
 
@@ -426,15 +510,23 @@ router.post('/pastors/:id', requireAdmin, (req, res) => {
     db.prepare('UPDATE users SET role = ? WHERE id = ?').run(u.role === 'admin' ? 'pastor' : 'admin', id);
     flash(req, 'info', 'Jogosultság módosítva.');
   } else if (action === 'reset') {
-    const password = randomToken(9);
-    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), id);
-    req.session.createdPw = { email: u.email, password };
+    const link = createInvite({ email: u.email, userId: u.id, createdBy: me.id });
+    req.session.createdInvite = { email: u.email, link, mailed: false, reset: true };
+  } else if (action === 'reset2fa' && id !== me.id) {
+    require('../twofactor').disable('user', id);
+    flash(req, 'info', `${u.name} kétfaktoros hitelesítése kikapcsolva (pl. elveszett telefon esetén).`);
   }
   res.redirect('/admin/pastors');
 });
 
 // --- Csoportok (gyülekezetek, munkacsoportok) -----------------------------------
 // Bármely lelkész létrehozhat csoportot; szerkeszteni a csoport tagjai és az adminisztrátorok tudják.
+function randomSuffix() {
+  return randomToken(8).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 6) || 'x' + Date.now().toString(36).slice(-5);
+}
+// A csoportlink véletlen végződést kap, így nem lehet kitalálni.
+const newGroupSlug = (name) => uniqueSlug(`${groupSlug(name)}-${randomSuffix()}`);
+
 function canEditGroup(me, group) {
   return me.role === 'admin' || isMember(group.id, me.id);
 }
@@ -463,7 +555,7 @@ router.post('/groups/from-congregation', (req, res) => {
   if (!name || !members.length) return res.redirect('/admin/groups');
   const gid = db.transaction(() => {
     const id = db.prepare("INSERT INTO groups(name, slug, kind, created_by) VALUES (?, ?, 'gyulekezet', ?)")
-      .run(name, uniqueSlug(groupSlug(name)), res.locals.currentUser.id).lastInsertRowid;
+      .run(name, newGroupSlug(name), res.locals.currentUser.id).lastInsertRowid;
     for (const m of members) db.prepare('INSERT INTO group_members(group_id, user_id) VALUES (?, ?)').run(id, m.id);
     return id;
   })();
@@ -505,7 +597,7 @@ router.post('/groups/:id', (req, res) => {
     description: String(b.description || '').trim().slice(0, 1000),
     active: b.active === 'on' ? 1 : 0,
   };
-  data.slug = groupSlug(b.slug || data.name);
+  data.slug = b.slug ? groupSlug(b.slug) : (isNew ? newGroupSlug(data.name) : groupSlug(data.name));
   let members = [...new Set([].concat(b.members || []).map(Number))];
   // Nem admin lelkész nem zárhatja ki magát véletlenül (különben elveszítené a szerkesztési jogot).
   if (me.role !== 'admin' && !members.includes(me.id)) members.push(me.id);

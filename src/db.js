@@ -132,6 +132,48 @@ function addColumn(table, column, def) {
 }
 addColumn('users', 'congregation', "TEXT DEFAULT ''");
 
+// Kétfaktoros hitelesítés (lelkészek)
+addColumn('users', 'totp_secret', 'TEXT');          // titkosítva
+addColumn('users', 'totp_enabled', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('users', 'totp_last_step', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('users', 'backup_codes', 'TEXT');         // JSON: scrypt hash-ek
+
+// Foglalások összekötése foglalói fiókkal és csoporttal
+addColumn('bookings', 'client_id', 'INTEGER');
+addColumn('bookings', 'group_id', 'INTEGER');
+
+db.exec(`
+-- Időpontkérők (foglalók) saját fiókja
+CREATE TABLE IF NOT EXISTS clients (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  name TEXT NOT NULL,
+  phone TEXT DEFAULT '',
+  password_hash TEXT NOT NULL,
+  totp_secret TEXT,
+  totp_enabled INTEGER NOT NULL DEFAULT 0,
+  totp_last_step INTEGER NOT NULL DEFAULT 0,
+  backup_codes TEXT,
+  calendar_token TEXT NOT NULL UNIQUE,          -- naptár-feliratkozási (ICS) link titka
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Meghívók a lelkészi felületre (és jelszó-visszaállító linkek meglévő lelkészeknek)
+CREATE TABLE IF NOT EXISTS invites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  token_hash TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL COLLATE NOCASE,
+  role TEXT NOT NULL DEFAULT 'pastor',
+  congregation TEXT DEFAULT '',
+  group_ids TEXT DEFAULT '[]',
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,   -- ha meglévő lelkész jelszó-visszaállítása
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  expires_at INTEGER NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`);
+
 const DEFAULT_SETTINGS = {
   org_name: 'Gyülekezet',
   org_intro: 'Foglaljon időpontot lelkészeinkhez beszélgetésre, lelkigondozásra vagy egyéb alkalomra.',

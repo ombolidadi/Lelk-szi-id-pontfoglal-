@@ -1,0 +1,24 @@
+<%- include('../partials/header') %>
+<section class="card narrow stack">
+  <% if (existing) { %>
+    <h1>Új jelszó beállítása</h1>
+    <p>Kedves <%= existing.name %>! Adjon meg új jelszót a lelkészi felülethez.</p>
+  <% } else { %>
+    <h1>Regisztráció a lelkészi felületre</h1>
+    <p>Meghívást kapott a(z) <%= settings.org_name %> időpontfoglaló rendszerébe. A fiókja ehhez az e-mail címhez készül:
+      <strong><%= invite.email %></strong></p>
+  <% } %>
+  <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+  <form method="post" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <% if (!existing) { %>
+      <label>Név *<input name="name" required maxlength="120" value="<%= form.name || '' %>" autocomplete="name"></label>
+      <label>Megnevezés (pl. „parókus lelkész”)<input name="title" maxlength="120" value="<%= form.title || '' %>"></label>
+    <% } %>
+    <label>Jelszó (legalább 10 karakter) *<input name="password" type="password" minlength="10" required autocomplete="new-password"></label>
+    <label>Jelszó még egyszer *<input name="password2" type="password" minlength="10" required autocomplete="new-password"></label>
+    <button class="btn btn-primary"><%= existing ? 'Jelszó mentése' : 'Regisztráció' %></button>
+  </form>
+  <p class="muted small">Belépés után a Profil oldalon bekapcsolhatja a kétfaktoros hitelesítést.</p>
+</section>
+<%- include('../partials/footer') %>

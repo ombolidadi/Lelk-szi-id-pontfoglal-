@@ -25,7 +25,8 @@
     "ejs": "^7.0.2",
     "express": "^5.3.0",
     "luxon": "^3.7.2",
-    "nodemailer": "^10.5.0"
+    "nodemailer": "^10.5.0",
+    "qrcode": "^1.5.4"
   },
   "engines": {
     "node": ">=20"

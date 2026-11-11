@@ -4,18 +4,14 @@ Online időpontfoglaló alkalmazás gyülekezeteknek, **több lelkész** számá
 
 ## Funkciók
 
-- **Több lelkész** – mindegyiknek saját belépése, heti elérhetősége, távollétei és szolgáltatásai.
-- **Google Naptár szinkronizálás lelkészenként** – minden lelkész a *saját* Google fiókját (akár többet is, pl. személyes + gyülekezeti) csatlakoztatja:
-  - kiválaszthatja, **mely naptárak** foglalt időszakai zárják ki az időpontokat (több naptár is);
-  - kiválaszthatja, **melyik naptárba** kerüljenek az új foglalások;
-  - a foglaló opcionálisan Google Naptár-meghívót kap; lemondáskor az esemény törlődik.
-- **Több szolgáltatás** (pl. lelkigondozói beszélgetés, keresztelő, jegyesoktatás, temetés) – egyedi időtartammal, szünettel, helyszínnel, színnel; szolgáltatásonként megadható, mely lelkészeknél foglalható.
-- **Lelkészi csoportok** (gyülekezet, munkacsoport, egyéb) – minden csoport **saját megosztható linket** kap (`/csoport/<azonosító>`), amelyen **csak a csoport lelkészeinek** időpontjai foglalhatók. Egy lelkész több csoportnak is tagja lehet. Csoportot bármely lelkész létrehozhat; szerkeszteni a tagok és az adminisztrátorok tudják.
-- **Gyülekezet a lelkészhez** – megjelenik a foglalóoldalon és a visszaigazolásban; a gyülekezetekből egy kattintással csoport készíthető.
-- **Nyilvános foglalóoldal** – szolgáltatás → lelkész (vagy „bármelyik lelkész”) → heti nézetben szabad időpont → adatok. Mobilbarát.
-- **Lemondás** linkkel a foglaló részéről, illetve a lelkészi felületről.
-- Opcionális **e-mail értesítés** (SMTP) a foglalónak és a lelkésznek.
-- Beállítások: minimális előfoglalási idő, maximum hány nappal előre, időpontok lépésköze, időzóna.
+- **Nincs közös felület** – a főoldal semmit nem listáz. Foglalni csak egy **csoport saját linkjén** lehet (`/csoport/<azonosító>`), és csak **a csoport lelkészeihez**. A link véletlen végződést kap, így nem kitalálható.
+- **Lelkészi csoportok** (gyülekezet, munkacsoport, egyéb) – egy lelkész több csoportnak is tagja lehet; gyülekezetből egy kattintással csoport készíthető.
+- **Rejtett, meghívásos lelkészi felület** – nincs rá gomb vagy link a nyilvános oldalakon, a keresők nem indexelik (`robots.txt`, `noindex`). Regisztrálni csak az adminisztrátor által küldött **meghívólinkkel** lehet (7 napig érvényes, egyszer használható). Elfelejtett jelszóhoz az admin visszaállító linket készít. Van **Kijelentkezés** gomb.
+- **Opcionális kétfaktoros hitelesítés** lelkészeknek és foglalóknak is – hitelesítő alkalmazással (Google/Microsoft Authenticator, Authy), 8 egyszer használható tartalékkóddal. Az admin elveszett telefon esetén kikapcsolhatja egy lelkész 2FA-ját.
+- **Fiók az időpontkérőknek** (nem kötelező) – belépés után egy helyen látja a foglalásait, lemondhatja őket, és **feliratkozhat rájuk a saját naptárában** (Google, Apple, Outlook): az új foglalások és lemondások maguktól megjelennek. Fiók nélkül is lehet foglalni; ilyenkor a visszaigazoló oldalon „Hozzáadás a Google Naptárhoz” gomb van.
+- **Google Naptár lelkészenként** – minden lelkész a saját Google fiókját (akár többet is) köti be: kiválasztja, mely naptárak foglalt időszakait vegye figyelembe a rendszer, és melyik naptárba kerüljenek az új foglalások.
+- **Több szolgáltatás** egyedi időtartammal, szünettel, helyszínnel; szolgáltatásonként megadható, mely lelkészeknél foglalható.
+- Opcionális **e-mail értesítés** (SMTP) – foglalás, lemondás, meghívó.
 
 ## Kipróbálás bemutató adatokkal
 
@@ -24,8 +20,9 @@ npm install
 npm run demo
 ```
 
-Nyissa meg: `http://localhost:3000` – belépés: `admin@demo.hu` / `demo1234` (lelkészek: `anna@demo.hu`, `gabor@demo.hu`, jelszó ugyanaz).
-Csoportlinkek: `/csoport/budavari-gyulekezet`, `/csoport/ifjusagi-munkacsoport`.
+- Csoportlinkek: `http://localhost:3000/csoport/budavari-gyulekezet-x7k2q` és `http://localhost:3000/csoport/ifjusagi-munkacsoport-m4p9z`
+- Lelkészi felület: `http://localhost:3000/admin/login` – `admin@demo.hu` / `demo1234` (lelkészek: `anna@demo.hu`, `gabor@demo.hu`, jelszó ugyanaz)
+- Foglalói fiók: `elek@demo.hu` / `demo1234`
 A bemutató adatok csak üres adatbázisba töltődnek be (a `data/app.db` törlésével újrakezdhető).
 
 ## Gyors indítás (helyben)
@@ -50,6 +47,9 @@ Nyissa meg a `http://localhost:3000` címet. Az első indításkor a rendszer az
 Ezután minden lelkész a **Google naptár** menüben a saját fiókjával csatlakozik. A tokenek titkosítva (AES-256-GCM, a `SESSION_SECRET`-ből képzett kulccsal) tárolódnak – ezért a `SESSION_SECRET`-et később ne változtassa meg, különben újra kell csatlakoztatni a fiókokat.
 
 ## Telepítés online
+
+**Render.com (legegyszerűbb):** a repóban lévő `render.yaml` alapján a Render „New → Blueprint” menüjében a repót kiválasztva magától létrejön a szolgáltatás tartós lemezzel. Utána a Render felületén adja meg a `BASE_URL` (a kapott https-cím) és a Google-azonosítók értékét. (A tartós lemez miatt fizetős csomag kell, kb. havi 7–8 USD.)
+
 
 Bármely Node.js 20+ futtatására képes szolgáltatón működik, amely **tartós lemezt** biztosít az SQLite adatbázisnak (pl. Render + Disk, Railway + Volume, Fly.io + Volume, saját VPS).
 

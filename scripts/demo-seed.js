@@ -26,6 +26,10 @@ svcs.forEach(([n, s, d, dur, col, ps], i) => {
   ps.forEach((p) => db.prepare('INSERT INTO pastor_services VALUES (?,?)').run(ids[p], sid));
 });
 const g = (n, s, k, m) => { const gid = db.prepare('INSERT INTO groups(name,slug,kind,description) VALUES (?,?,?,?)').run(n, s, k, '').lastInsertRowid; m.forEach((i) => db.prepare('INSERT INTO group_members VALUES (?,?)').run(gid, ids[i])); };
-g('Budavári Gyülekezet', 'budavari-gyulekezet', 'gyulekezet', [0, 1]);
-g('Ifjúsági munkacsoport', 'ifjusagi-munkacsoport', 'munkacsoport', [1, 2]);
+g('Budavári Gyülekezet', 'budavari-gyulekezet-x7k2q', 'gyulekezet', [0, 1]);
+g('Ifjúsági munkacsoport', 'ifjusagi-munkacsoport-m4p9z', 'munkacsoport', [1, 2]);
+db.prepare('INSERT INTO clients(email, name, phone, password_hash, calendar_token) VALUES (?, ?, ?, ?, ?)')
+  .run('elek@demo.hu', 'Teszt Elek', '', pw, require('crypto').randomBytes(18).toString('base64url'));
+console.log('Csoportlinkek: /csoport/budavari-gyulekezet-x7k2q  és  /csoport/ifjusagi-munkacsoport-m4p9z');
+console.log('Foglalói fiók: elek@demo.hu / demo1234');
 console.log('Bemutató adatok betöltve. Belépés: admin@demo.hu / demo1234');

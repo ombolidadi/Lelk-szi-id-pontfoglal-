@@ -158,3 +158,17 @@ tr.cancelled td { opacity: .55; }
 .congr-form input { margin-top: 0 !important; padding: .3rem .5rem !important; font-size: .9rem; min-width: 140px; }
 .full-row { grid-column: 1 / -1; margin-bottom: .9rem; }
 .label { font-weight: 500; margin: 0 0 .3rem; }
+.subnav-logout { margin-left: auto; display: flex; align-items: center; padding: 0 .8rem; }
+.small { font-size: .88rem; }
+.stack { display: flex; flex-direction: column; gap: .8rem; }
+.stack > * { margin: 0; }
+.codes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; padding: 0; list-style: none; }
+.codes code { font-size: 1rem; letter-spacing: .05em; }
+.qr { margin: .6rem 0; }
+.qr img { background: #fff; padding: 8px; border-radius: 8px; border: 1px solid var(--border); }
+.steps { padding-left: 1.2rem; display: flex; flex-direction: column; gap: .6rem; }
+.topbar nav .muted { margin-right: .2rem; }
+.list-cards { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 1rem; }
+.booking-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 0; }
+.booking-row.inactive { opacity: .6; }
+.share { display: flex; gap: .4rem; }

@@ -18,7 +18,7 @@ function formatRange(startIso, endIso, tz) {
 
 class BookingError extends Error {}
 
-async function createBooking({ service, pastorIds, start, client }) {
+async function createBooking({ service, pastorIds, start, client, clientId = null, groupId = null }) {
   const settings = getSettings();
   const startMs = Date.parse(start);
   if (Number.isNaN(startMs)) throw new BookingError('Érvénytelen időpont.');
@@ -39,10 +39,10 @@ async function createBooking({ service, pastorIds, start, client }) {
   const insert = db.transaction(() => {
     // Utolsó ellenőrzés tranzakción belül a párhuzamos foglalások ellen.
     if (dbBusy(pastorId, startMs - pad, endMs + pad).length) throw new BookingError('Ez az időpont időközben betelt.');
-    return db.prepare(`INSERT INTO bookings(service_id, user_id, start_utc, end_utc, client_name, client_email, client_phone, note, token)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    return db.prepare(`INSERT INTO bookings(service_id, user_id, start_utc, end_utc, client_name, client_email, client_phone, note, token, client_id, group_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(service.id, pastorId, new Date(startMs).toISOString(), new Date(endMs).toISOString(),
-        client.name, client.email, client.phone || '', client.note || '', token).lastInsertRowid;
+        client.name, client.email, client.phone || '', client.note || '', token, clientId, groupId).lastInsertRowid;
   });
   const bookingId = insert();
   const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(bookingId);
@@ -100,6 +100,7 @@ async function cancelBooking(booking, { by }) {
   }
   const service = db.prepare('SELECT * FROM services WHERE id = ?').get(booking.service_id);
   const pastor = db.prepare('SELECT * FROM users WHERE id = ?').get(booking.user_id);
+  const group = booking.group_id ? db.prepare('SELECT slug FROM groups WHERE id = ? AND active = 1').get(booking.group_id) : null;
   const when = formatRange(booking.start_utc, booking.end_utc, settings.timezone);
   if (by === 'client') {
     await mailer.send(pastor.email, `Lemondott foglalás: ${service.name} – ${booking.client_name}`,
@@ -107,7 +108,7 @@ async function cancelBooking(booking, { by }) {
   } else {
     await mailer.send(booking.client_email, `Időpont lemondva – ${service.name}`,
       `Kedves ${booking.client_name}!\n\nSajnos a(z) ${when} időpontot (${service.name}, ${pastor.name}) le kellett mondanunk.\n` +
-      `Új időpontot itt foglalhat: ${baseUrl()}/\n\n${settings.org_name}`);
+      (group ? `Új időpontot itt foglalhat: ${baseUrl()}/csoport/${group.slug}\n\n` : '\n') + settings.org_name);
   }
 }
 

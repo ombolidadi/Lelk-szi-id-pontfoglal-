@@ -1,9 +1,5 @@
 <%- include('partials/header') %>
-<% if (group) { %>
 <p><a href="/csoport/<%= group.slug %>">← <%= group.name %></a></p>
-<% } else { %>
-<p><a href="/">← Minden szolgáltatás</a></p>
-<% } %>
 <section class="card" style="--accent: <%= service.color %>">
   <h1><%= service.name %></h1>
   <% if (service.description) { %><p><%= service.description %></p><% } %>
@@ -15,15 +11,14 @@
 <% if (!pastors.length) { %>
   <p class="muted">Ehhez a szolgáltatáshoz jelenleg nincs elérhető lelkész.</p>
 <% } else { %>
-<form method="post" id="booking-form" class="card" data-service="<%= service.id %>" data-group="<%= group ? group.slug : '' %>">
+<form method="post" id="booking-form" class="card" data-service="<%= service.id %>" data-group="<%= group.slug %>">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
-  <% if (group) { %><input type="hidden" name="csoport" value="<%= group.slug %>"><% } %>
   <input type="hidden" name="start" id="start" value="<%= form.start || '' %>">
 
   <h2>1. Lelkész</h2>
   <div class="pastor-pick">
     <% if (pastors.length > 1) { %>
-      <label class="radio-card"><input type="radio" name="pastor" value="any" <%= !preselect ? 'checked' : '' %>> <span>Bármelyik lelkész<% if (group) { %><small><%= group.name %></small><% } %></span></label>
+      <label class="radio-card"><input type="radio" name="pastor" value="any" <%= !preselect ? 'checked' : '' %>> <span>Bármelyik lelkész<small><%= group.name %></small></span></label>
     <% } %>
     <% pastors.forEach(function (p) { %>
       <label class="radio-card"><input type="radio" name="pastor" value="<%= p.id %>" <%= (preselect === p.id || pastors.length === 1) ? 'checked' : '' %>>
@@ -41,9 +36,14 @@
   <p id="chosen" class="chosen" hidden></p>
 
   <h2>3. Adatai</h2>
+  <% if (currentClient) { %>
+    <p class="muted small">Bejelentkezve: <strong><%= currentClient.email %></strong>. A foglalás megjelenik a Foglalásaim oldalon és a naptár-feliratkozásában.</p>
+  <% } else { %>
+    <p class="muted small">Van fiókja? <a href="/fiok/belepes?vissza=<%= encodeURIComponent(path) %>">Jelentkezzen be</a> – vagy <a href="/fiok/regisztracio?vissza=<%= encodeURIComponent(path) %>">hozzon létre egyet</a>, hogy lássa a foglalásait és a saját naptárába szinkronizálhassa őket.</p>
+  <% } %>
   <div class="form-grid">
     <label>Név *<input name="name" required maxlength="120" value="<%= form.name || '' %>" autocomplete="name"></label>
-    <label>E-mail *<input name="email" type="email" required maxlength="200" value="<%= form.email || '' %>" autocomplete="email"></label>
+    <label>E-mail *<input name="email" type="email" required maxlength="200" value="<%= currentClient ? currentClient.email : (form.email || '') %>" autocomplete="email" <%= currentClient ? 'readonly' : '' %>></label>
     <label>Telefon<input name="phone" type="tel" maxlength="40" value="<%= form.phone || '' %>" autocomplete="tel"></label>
   </div>
   <label>Megjegyzés (nem kötelező)<textarea name="note" rows="3" maxlength="2000" placeholder="Miben segíthetünk?"><%= form.note || '' %></textarea></label>

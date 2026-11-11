@@ -1,14 +1,13 @@
 <%- include('partials/header') %>
 <section class="hero">
-  <% if (group) { %>
-    <p class="eyebrow"><%= KINDS[group.kind] || 'Csoport' %></p>
-    <h1><%= group.name %></h1>
-    <p><%= group.description || 'Foglaljon időpontot a csoport lelkészeihez.' %></p>
-  <% } else { %>
-    <h1>Időpontfoglalás</h1>
-    <p><%= settings.org_intro %></p>
-  <% } %>
+  <p class="eyebrow"><%= KINDS[group.kind] || 'Csoport' %></p>
+  <h1><%= group.name %></h1>
+  <p><%= group.description || 'Foglaljon időpontot lelkészeinkhez beszélgetésre, lelkigondozásra vagy egyéb alkalomra.' %></p>
 </section>
+
+<% if (!currentClient) { %>
+  <p class="muted small">Van fiókja? <a href="/fiok/belepes?vissza=<%= encodeURIComponent(path) %>">Jelentkezzen be</a>, hogy egy helyen lássa a foglalásait, és a saját naptárába szinkronizálhassa őket. Fiók nélkül is foglalhat.</p>
+<% } %>
 
 <h2>Válasszon szolgáltatást</h2>
 <% if (!services.length) { %>
@@ -16,7 +15,7 @@
 <% } %>
 <div class="grid">
   <% services.forEach(function (s) { %>
-    <a class="card service-card" href="/szolgaltatas/<%= s.slug %><%= q %>" style="--accent: <%= s.color %>">
+    <a class="card service-card" href="/csoport/<%= group.slug %>/<%= s.slug %>" style="--accent: <%= s.color %>">
       <h3><%= s.name %></h3>
       <% if (s.description) { %><p><%= s.description %></p><% } %>
       <p class="meta"><%= s.duration_min %> perc<% if (s.location) { %> · <%= s.location %><% } %></p>
@@ -26,7 +25,7 @@
 </div>
 
 <% if (pastors.length) { %>
-<h2><%= group ? 'A csoport lelkészei' : 'Lelkészeink' %></h2>
+<h2>Lelkészeink</h2>
 <div class="grid">
   <% pastors.forEach(function (p) { %>
     <div class="card">
@@ -35,7 +34,7 @@
       <% if (p.bio) { %><p><%= p.bio %></p><% } %>
       <div class="chips">
         <% services.filter(function (s) { return pastorServices.some(function (ps) { return ps.user_id === p.id && ps.service_id === s.id; }); }).forEach(function (s) { %>
-          <a class="chip" href="/szolgaltatas/<%= s.slug %><%= q ? q + '&' : '?' %>lelkesz=<%= p.id %>"><%= s.name %></a>
+          <a class="chip" href="/csoport/<%= group.slug %>/<%= s.slug %>?lelkesz=<%= p.id %>"><%= s.name %></a>
         <% }) %>
       </div>
     </div>

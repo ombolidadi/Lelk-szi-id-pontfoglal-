@@ -31,6 +31,7 @@ app.use((req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
   res.set('X-Frame-Options', 'SAMEORIGIN');
   res.set('Referrer-Policy', 'same-origin');
+  res.set('X-Robots-Tag', 'noindex, nofollow'); // keresők ne indexeljék
   next();
 });
 app.use((req, res, next) => {
@@ -41,6 +42,11 @@ app.use((req, res, next) => {
   res.locals.currentUser = req.session.userId
     ? db.prepare('SELECT id, name, email, role FROM users WHERE id = ? AND active = 1').get(req.session.userId)
     : null;
+  res.locals.currentClient = req.session.clientId
+    ? db.prepare('SELECT id, name, email, phone FROM clients WHERE id = ?').get(req.session.clientId)
+    : null;
+  if (req.session.clientId && !res.locals.currentClient) delete req.session.clientId;
+  res.locals.group = null;
   res.locals.fmt = (iso, f = 'yyyy. LLL d. HH:mm') => DateTime.fromISO(iso, { zone: settings.timezone }).setLocale('hu').toFormat(f);
   res.locals.path = req.path;
   next();
@@ -49,6 +55,7 @@ app.use((req, res, next) => {
 app.use(csrf);
 
 app.use('/admin', require('./routes/admin'));
+app.use('/', require('./routes/account'));
 app.use('/', require('./routes/public'));
 
 app.use((req, res) => res.status(404).render('error', { title: 'Nem található', message: 'A keresett oldal nem található.' }));

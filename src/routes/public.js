@@ -7,86 +7,79 @@ const { findActiveGroup, memberIds, KINDS } = require('../groups');
 
 const router = express.Router();
 
-/**
- * A kérésben megadott csoport (?csoport=... vagy űrlapmező).
- * undefined = nincs csoport megadva; null = megadva, de nem létezik / inaktív.
- */
-function requestGroup(req) {
-  const slug = (req.body && req.body.csoport) || req.query.csoport;
-  if (!slug) return undefined;
-  return findActiveGroup(slug);
-}
+router.get('/robots.txt', (req, res) => res.type('text/plain').send('User-agent: *\nDisallow: /\n'));
 
-/** A szolgáltatást nyújtó lelkészek, csoport esetén csak a csoport tagjai. */
-function pastorsFor(serviceId, group) {
-  const all = pastorsForService(serviceId);
-  if (!group) return all;
-  const members = new Set(memberIds(group.id));
-  return all.filter((p) => members.has(p.id));
-}
-
-function groupNotFound(res) {
-  return res.status(404).render('error', { title: 'Nem található', message: 'Ez a csoport nem létezik, vagy már nem elérhető.' });
-}
-
-function renderHome(res, group) {
-  const members = group ? memberIds(group.id) : null;
-  const inGroup = (alias) => (members ? ` AND ${alias}.id IN (${members.map(Number).join(',') || '0'})` : '');
-  const services = db.prepare(`SELECT s.* FROM services s WHERE s.active = 1 AND EXISTS (
-      SELECT 1 FROM pastor_services ps JOIN users u ON u.id = ps.user_id
-      WHERE ps.service_id = s.id AND u.active = 1${inGroup('u')})
-    ORDER BY s.sort, s.name`).all();
-  const pastors = db.prepare(`SELECT u.id, u.name, u.title, u.bio, u.congregation FROM users u WHERE u.active = 1${inGroup('u')}
-    AND EXISTS (SELECT 1 FROM pastor_services ps JOIN services s ON s.id = ps.service_id WHERE ps.user_id = u.id AND s.active = 1)
-    ORDER BY u.name`).all();
-  const pastorServices = db.prepare('SELECT user_id, service_id FROM pastor_services').all();
-  res.render('index', {
-    title: group ? group.name : 'Időpontfoglalás',
-    services, pastors, pastorServices, group: group || null, KINDS,
-    q: group ? `?csoport=${encodeURIComponent(group.slug)}` : '',
-  });
-}
-
+// Nincs közös felület: a főoldal semmit nem listáz, foglalni csak csoportlinken lehet.
 router.get('/', (req, res) => {
   if (!db.prepare('SELECT 1 FROM users LIMIT 1').get()) return res.redirect('/admin/setup');
-  renderHome(res, null);
+  res.render('landing', { title: 'Időpontfoglalás' });
 });
 
-router.get('/csoport/:slug', (req, res) => {
-  const group = findActiveGroup(req.params.slug);
-  if (!group) return groupNotFound(res);
-  renderHome(res, group);
+function groupNotFound(res) {
+  return res.status(404).render('error', { title: 'Nem található', message: 'Ez a link nem létezik, vagy már nem érvényes. Kérjük, kérjen új linket a gyülekezetétől.' });
+}
+
+/** A csoport lelkészei, akik az adott szolgáltatást nyújtják – csak csoporttagokhoz lehet foglalni. */
+function pastorsFor(serviceId, group) {
+  const members = new Set(memberIds(group.id));
+  return pastorsForService(serviceId).filter((p) => members.has(p.id));
+}
+
+function loadGroup(req, res, next) {
+  const group = findActiveGroup(req.params.group || req.query.csoport);
+  if (!group) return req.path.startsWith('/api/') ? res.status(404).json({ error: 'Ismeretlen csoport' }) : groupNotFound(res);
+  req.group = group;
+  res.locals.group = group;
+  req.session.lastGroup = group.slug;
+  next();
+}
+
+function loadService(req, res, next) {
+  const service = db.prepare('SELECT * FROM services WHERE slug = ? AND active = 1').get(req.params.service);
+  const pastors = service ? pastorsFor(service.id, req.group) : [];
+  if (!service || !pastors.length) return res.status(404).render('error', { title: 'Nem található', message: 'Ez a szolgáltatás ebben a csoportban nem foglalható.' });
+  req.service = service;
+  req.pastors = pastors;
+  next();
+}
+
+router.get('/csoport/:group', loadGroup, (req, res) => {
+  const members = memberIds(req.group.id).map(Number);
+  const inList = members.join(',') || '0';
+  const services = db.prepare(`SELECT s.* FROM services s WHERE s.active = 1 AND EXISTS (
+      SELECT 1 FROM pastor_services ps JOIN users u ON u.id = ps.user_id
+      WHERE ps.service_id = s.id AND u.active = 1 AND u.id IN (${inList}))
+    ORDER BY s.sort, s.name`).all();
+  const pastors = db.prepare(`SELECT id, name, title, bio, congregation FROM users WHERE active = 1 AND id IN (${inList})
+    AND EXISTS (SELECT 1 FROM pastor_services ps JOIN services s ON s.id = ps.service_id WHERE ps.user_id = users.id AND s.active = 1)
+    ORDER BY name`).all();
+  const pastorServices = db.prepare('SELECT user_id, service_id FROM pastor_services').all();
+  res.render('index', { title: req.group.name, services, pastors, pastorServices, KINDS });
 });
 
-function renderBook(res, service, group, extra = {}) {
+function renderBook(req, res, extra = {}) {
+  const c = res.locals.currentClient;
   res.render('book', {
-    title: service.name,
-    service,
-    pastors: pastorsFor(service.id, group),
-    group: group || null,
+    title: req.service.name,
+    service: req.service,
+    pastors: req.pastors,
     preselect: null,
     error: null,
-    form: {},
+    form: c ? { name: c.name, email: c.email, phone: c.phone } : {},
     ...extra,
   });
 }
 
-router.get('/szolgaltatas/:slug', (req, res) => {
-  const group = requestGroup(req);
-  if (group === null) return groupNotFound(res);
-  const service = db.prepare('SELECT * FROM services WHERE slug = ? AND active = 1').get(req.params.slug);
-  if (!service) return res.status(404).render('error', { title: 'Nem található', message: 'Ez a szolgáltatás nem elérhető.' });
-  renderBook(res, service, group, { preselect: Number(req.query.lelkesz) || null });
+router.get('/csoport/:group/:service', loadGroup, loadService, (req, res) => {
+  renderBook(req, res, { preselect: Number(req.query.lelkesz) || null });
 });
 
-router.get('/api/slots', async (req, res, next) => {
+router.get('/api/slots', loadGroup, async (req, res, next) => {
   try {
     const settings = getSettings();
-    const group = requestGroup(req);
-    if (group === null) return res.status(404).json({ error: 'Ismeretlen csoport' });
     const service = db.prepare('SELECT * FROM services WHERE id = ? AND active = 1').get(Number(req.query.service));
     if (!service) return res.status(404).json({ error: 'Ismeretlen szolgáltatás' });
-    const offered = pastorsFor(service.id, group).map((p) => p.id);
+    const offered = pastorsFor(service.id, req.group).map((p) => p.id);
     const pastorIds = req.query.pastor && req.query.pastor !== 'any'
       ? offered.filter((id) => id === Number(req.query.pastor))
       : offered;
@@ -106,7 +99,6 @@ router.get('/api/slots', async (req, res, next) => {
         slots: (slots[date] || []).map((s) => ({
           start: s.start,
           label: DateTime.fromISO(s.start, { zone: settings.timezone }).toFormat('HH:mm'),
-          pastors: s.pastors,
         })),
       });
     }
@@ -116,12 +108,8 @@ router.get('/api/slots', async (req, res, next) => {
   }
 });
 
-router.post('/szolgaltatas/:slug', async (req, res, next) => {
-  const group = requestGroup(req);
-  if (group === null) return groupNotFound(res);
-  const service = db.prepare('SELECT * FROM services WHERE slug = ? AND active = 1').get(req.params.slug);
-  if (!service) return res.status(404).render('error', { title: 'Nem található', message: 'Ez a szolgáltatás nem elérhető.' });
-  const pastors = pastorsFor(service.id, group);
+router.post('/csoport/:group/:service', loadGroup, loadService, async (req, res, next) => {
+  const client = res.locals.currentClient;
   const form = {
     name: String(req.body.name || '').trim().slice(0, 120),
     email: String(req.body.email || '').trim().slice(0, 200),
@@ -130,20 +118,24 @@ router.post('/szolgaltatas/:slug', async (req, res, next) => {
     start: String(req.body.start || ''),
     pastor: String(req.body.pastor || 'any'),
   };
+  if (client) form.email = client.email; // bejelentkezett foglaló a saját címével foglal
   const fail = (error) => {
     res.status(400);
-    renderBook(res, service, group, { preselect: Number(form.pastor) || null, error, form });
+    renderBook(req, res, { preselect: Number(form.pastor) || null, error, form });
   };
   if (!form.name) return fail('Kérjük, adja meg a nevét.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return fail('Kérjük, adjon meg érvényes e-mail címet.');
   if (!form.start) return fail('Kérjük, válasszon időpontot.');
   if (req.body.consent !== 'on') return fail('A foglaláshoz el kell fogadnia az adatkezelést.');
 
-  const offered = pastors.map((p) => p.id);
+  const offered = req.pastors.map((p) => p.id);
   const pastorIds = form.pastor === 'any' ? offered : offered.filter((id) => id === Number(form.pastor));
-  if (!pastorIds.length) return fail('A kiválasztott lelkész nem érhető el ehhez a szolgáltatáshoz.');
+  if (!pastorIds.length) return fail('A kiválasztott lelkész nem érhető el ebben a csoportban.');
   try {
-    const booking = await createBooking({ service, pastorIds, start: form.start, client: form });
+    const booking = await createBooking({
+      service: req.service, pastorIds, start: form.start, client: form,
+      clientId: client ? client.id : null, groupId: req.group.id,
+    });
     req.session.flash = { type: 'success', text: 'Foglalását rögzítettük!' };
     res.redirect(`/foglalas/${booking.token}`);
   } catch (err) {
@@ -153,8 +145,10 @@ router.post('/szolgaltatas/:slug', async (req, res, next) => {
 });
 
 function findBooking(token) {
-  return db.prepare(`SELECT b.*, s.name AS service_name, s.location, u.name AS pastor_name, u.congregation AS pastor_congregation
-    FROM bookings b JOIN services s ON s.id = b.service_id JOIN users u ON u.id = b.user_id WHERE b.token = ?`).get(token);
+  return db.prepare(`SELECT b.*, s.name AS service_name, s.location, u.name AS pastor_name, u.congregation AS pastor_congregation,
+      g.slug AS group_slug, g.name AS group_name
+    FROM bookings b JOIN services s ON s.id = b.service_id JOIN users u ON u.id = b.user_id
+    LEFT JOIN groups g ON g.id = b.group_id AND g.active = 1 WHERE b.token = ?`).get(token);
 }
 
 router.get('/foglalas/:token', (req, res) => {
@@ -166,8 +160,22 @@ router.get('/foglalas/:token', (req, res) => {
     booking,
     when: formatRange(booking.start_utc, booking.end_utc, tz),
     isPast: Date.parse(booking.start_utc) < Date.now(),
+    gcalLink: googleCalendarLink(booking),
   });
 });
+
+/** „Hozzáadás a Google Naptárhoz” link egy foglaláshoz (bejelentkezés nélkül is). */
+function googleCalendarLink(b) {
+  const f = (iso) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const q = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: `${b.service_name} – ${b.pastor_name}`,
+    dates: `${f(b.start_utc)}/${f(b.end_utc)}`,
+    details: `Időpontfoglalás: ${b.service_name}\nLelkész: ${b.pastor_name}`,
+    location: b.location || '',
+  });
+  return `https://calendar.google.com/calendar/render?${q}`;
+}
 
 router.post('/foglalas/:token/lemondas', async (req, res, next) => {
   try {
@@ -184,3 +192,4 @@ router.post('/foglalas/:token/lemondas', async (req, res, next) => {
 router.get('/adatkezeles', (req, res) => res.render('privacy', { title: 'Adatkezelési tájékoztató' }));
 
 module.exports = router;
+module.exports.googleCalendarLink = googleCalendarLink;

@@ -2,16 +2,20 @@
 <h1>Lelkészek</h1>
 
 <% if (created) { %>
-  <div class="alert alert-success">
-    Belépési adatok – adja át a lelkésznek (csak most látható!):<br>
-    E-mail: <strong><%= created.email %></strong> · Jelszó: <code><%= created.password %></code><br>
-    Első belépés után a Profil oldalon módosíthatja a jelszavát, és csatlakoztathatja a saját Google naptárát.
+  <div class="alert alert-success stack">
+    <div><%= created.reset ? 'Jelszó-visszaállító link' : 'Meghívó' %> elkészült: <strong><%= created.email %></strong>
+      <% if (created.mailed) { %>– e-mailben is elküldtük.<% } else { %>– küldje el neki (pl. e-mailben). A link 7 napig érvényes és egyszer használható.<% } %></div>
+    <div class="share">
+      <input readonly value="<%= created.link %>" id="invite-link" aria-label="Meghívólink" onclick="this.select()">
+      <button type="button" class="btn btn-small" data-copy="<%= created.link %>">Másolás</button>
+    </div>
+    <div class="small">A link csak most látható. Ha elveszik, készítsen újat.</div>
   </div>
 <% } %>
 
 <div class="table-wrap">
 <table>
-  <thead><tr><th>Név</th><th>Gyülekezet, csoportok</th><th>Szerepkör</th><th>Google</th><th>Közelgő</th><th></th></tr></thead>
+  <thead><tr><th>Név</th><th>Gyülekezet, csoportok</th><th>Szerepkör</th><th>Védelem</th><th>Közelgő</th><th></th></tr></thead>
   <tbody>
   <% pastors.forEach(function (p) { %>
     <tr class="<%= p.active ? '' : 'cancelled' %>">
@@ -27,14 +31,15 @@
         <% } %>
       </td>
       <td><%= p.role === 'admin' ? 'Adminisztrátor' : 'Lelkész' %><%= p.active ? '' : ' (inaktív)' %></td>
-      <td><%= p.google_count ? p.google_count + ' fiók' : '–' %></td>
+      <td><%= p.totp_enabled ? 'Kétfaktoros ✓' : 'Csak jelszó' %><% if (p.google_count) { %><br><small>Google: <%= p.google_count %> fiók</small><% } %></td>
       <td><%= p.upcoming %></td>
       <td class="actions">
         <a class="btn btn-small btn-ghost" href="/admin/availability?lelkesz=<%= p.id %>">Elérhetőség</a>
         <form method="post" action="/admin/pastors/<%= p.id %>" class="inline">
           <input type="hidden" name="_csrf" value="<%= csrf %>">
-          <button class="btn btn-small btn-ghost" name="action" value="reset" onclick="return confirm('Új jelszót generál?')">Új jelszó</button>
+          <button class="btn btn-small btn-ghost" name="action" value="reset">Jelszó-visszaállító link</button>
           <% if (p.id !== currentUser.id) { %>
+            <% if (p.totp_enabled) { %><button class="btn btn-small btn-ghost" name="action" value="reset2fa">2FA kikapcsolása</button><% } %>
             <button class="btn btn-small btn-ghost" name="action" value="role"><%= p.role === 'admin' ? 'Admin jog elvétele' : 'Admin jog' %></button>
             <button class="btn btn-small btn-ghost" name="action" value="toggle"><%= p.active ? 'Inaktiválás' : 'Aktiválás' %></button>
           <% } %>
@@ -46,12 +51,11 @@
 </table>
 </div>
 
-<h2>Új lelkész felvétele</h2>
+<h2>Lelkész meghívása</h2>
+<p class="muted">A lelkészi felületre csak meghívóval lehet regisztrálni. A meghívott a linken maga adja meg a nevét és a jelszavát.</p>
 <form method="post" action="/admin/pastors" class="card form-grid">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
-  <label>Név<input name="name" required></label>
-  <label>E-mail<input name="email" type="email" required></label>
-  <label>Jelszó (üresen: generált)<input name="password" type="text" minlength="8"></label>
+  <label>E-mail cím *<input name="email" type="email" required></label>
   <label>Gyülekezet<input name="congregation" list="congregations" maxlength="120"></label>
   <label>Szerepkör<select name="role"><option value="pastor">Lelkész</option><option value="admin">Adminisztrátor</option></select></label>
   <% if (groups.length) { %>
@@ -62,7 +66,23 @@
     </div>
   </div>
   <% } %>
-  <button class="btn btn-primary">Felvétel</button>
+  <button class="btn btn-primary">Meghívó készítése</button>
 </form>
+
+<% if (invites.length) { %>
+<h2>Függő meghívók</h2>
+<ul class="list">
+  <% invites.forEach(function (i) { %>
+    <li>
+      <span><strong><%= i.email %></strong> <span class="muted small"><%= i.user_id ? 'jelszó-visszaállítás' : (i.role === 'admin' ? 'adminisztrátor' : 'lelkész') %> · lejár: <%= fmt(new Date(i.expires_at).toISOString(), 'LLL d. HH:mm') %></span></span>
+      <form method="post" action="/admin/invites/<%= i.id %>/revoke" class="inline">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <button class="btn btn-small btn-ghost">Visszavonás</button>
+      </form>
+    </li>
+  <% }) %>
+</ul>
+<% } %>
 <datalist id="congregations"><% congregations.forEach(function (c) { %><option value="<%= c %>"><% }) %></datalist>
+<script src="/admin.js"></script>
 <%- include('../partials/footer') %>
