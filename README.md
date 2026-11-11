@@ -17,6 +17,17 @@ Online időpontfoglaló alkalmazás gyülekezeteknek, **több lelkész** számá
 - Opcionális **e-mail értesítés** (SMTP) a foglalónak és a lelkésznek.
 - Beállítások: minimális előfoglalási idő, maximum hány nappal előre, időpontok lépésköze, időzóna.
 
+## Kipróbálás bemutató adatokkal
+
+```bash
+npm install
+npm run demo
+```
+
+Nyissa meg: `http://localhost:3000` – belépés: `admin@demo.hu` / `demo1234` (lelkészek: `anna@demo.hu`, `gabor@demo.hu`, jelszó ugyanaz).
+Csoportlinkek: `/csoport/budavari-gyulekezet`, `/csoport/ifjusagi-munkacsoport`.
+A bemutató adatok csak üres adatbázisba töltődnek be (a `data/app.db` törlésével újrakezdhető).
+
 ## Gyors indítás (helyben)
 
 ```bash
