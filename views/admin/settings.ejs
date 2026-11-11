@@ -1,0 +1,17 @@
+<%- include('../partials/header') %>
+<h1>Beállítások</h1>
+<form method="post" class="card">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label>Gyülekezet neve<input name="org_name" value="<%= settings.org_name %>"></label>
+  <label>Bevezető szöveg a kezdőlapon<textarea name="org_intro" rows="3"><%= settings.org_intro %></textarea></label>
+  <div class="form-grid">
+    <label>Legalább ennyi órával előre lehet foglalni<input type="number" name="min_notice_hours" min="0" value="<%= settings.min_notice_hours %>"></label>
+    <label>Legfeljebb ennyi nappal előre<input type="number" name="max_days_ahead" min="1" max="365" value="<%= settings.max_days_ahead %>"></label>
+    <label>Időpontok lépésköze (perc)<input type="number" name="slot_step_min" min="5" max="240" value="<%= settings.slot_step_min %>"></label>
+    <label>Időzóna<input name="timezone" value="<%= settings.timezone %>"></label>
+  </div>
+  <label class="check"><input type="checkbox" name="invite_client" <%= settings.invite_client === '1' ? 'checked' : '' %>>
+    A foglaló kapjon Google Naptár meghívót (e-mailben, a Google küldi)</label>
+  <button class="btn btn-primary">Mentés</button>
+</form>
+<%- include('../partials/footer') %>

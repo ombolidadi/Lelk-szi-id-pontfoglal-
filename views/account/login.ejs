@@ -1,0 +1,14 @@
+<%- include('../partials/header') %>
+<section class="card narrow stack">
+  <h1>Belépés</h1>
+  <p class="muted">Lépjen be, hogy lássa a foglalásait, és a saját naptárába szinkronizálhassa őket.</p>
+  <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+  <form method="post" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>E-mail cím<input name="email" type="email" required autocomplete="username"></label>
+    <label>Jelszó<input name="password" type="password" required autocomplete="current-password"></label>
+    <button class="btn btn-primary">Belépés</button>
+  </form>
+  <p class="small">Még nincs fiókja? <a href="/fiok/regisztracio">Fiók létrehozása</a></p>
+</section>
+<%- include('../partials/footer') %>

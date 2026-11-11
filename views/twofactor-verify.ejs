@@ -1,0 +1,13 @@
+<%- include('partials/header') %>
+<section class="card narrow stack">
+  <h1>Ellenőrző kód</h1>
+  <p>Írja be a hitelesítő alkalmazásban látható 6 jegyű kódot. Ha nincs önnél a telefonja, használjon egy tartalékkódot.</p>
+  <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+  <form method="post" action="<%= action %>" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Kód<input name="code" required autofocus autocomplete="one-time-code" inputmode="numeric" maxlength="11"></label>
+    <button class="btn btn-primary">Belépés</button>
+  </form>
+  <p class="small"><a href="<%= loginPath %>">← Vissza a belépéshez</a></p>
+</section>
+<%- include('partials/footer') %>

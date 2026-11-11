@@ -1,0 +1,15 @@
+<%- include('../partials/header') %>
+<section class="card narrow">
+  <h1>Első beállítás</h1>
+  <p>Hozza létre az első adminisztrátor (lelkész) fiókot. Később további lelkészeket is felvehet.</p>
+  <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+  <form method="post">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Gyülekezet neve<input name="org_name" value="<%= settings.org_name %>"></label>
+    <label>Az Ön neve<input name="name" required></label>
+    <label>E-mail cím<input name="email" type="email" required></label>
+    <label>Jelszó (min. 8 karakter)<input name="password" type="password" minlength="8" required></label>
+    <button class="btn btn-primary">Létrehozás</button>
+  </form>
+</section>
+<%- include('../partials/footer') %>

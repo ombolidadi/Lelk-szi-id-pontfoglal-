@@ -1,0 +1,78 @@
+<%- include('../partials/header') %>
+<% if (back) { %><p><a href="<%= back %>">← Új időpont foglalása</a></p><% } %>
+<h1>Foglalásaim</h1>
+
+<% function row(b, canCancel) { %>
+  <div class="card booking-row <%= b.status === 'cancelled' ? 'inactive' : '' %>">
+    <div class="stack" style="gap:.2rem">
+      <strong><%= b.service_name %></strong>
+      <span><%= b.when %></span>
+      <span class="meta"><%= b.pastor_name %><% if (b.location) { %> · <%= b.location %><% } %><% if (b.group_name) { %> · <%= b.group_name %><% } %></span>
+      <% if (b.status === 'cancelled') { %><span class="meta"><em>Lemondva</em></span><% } %>
+    </div>
+    <div class="actions">
+      <a class="btn btn-small btn-ghost" href="/foglalas/<%= b.token %>">Részletek</a>
+      <% if (canCancel && b.status === 'confirmed') { %>
+        <form method="post" action="/fiok/foglalas/<%= b.id %>/lemondas" class="inline" onsubmit="return confirm('Biztosan lemondja az időpontot?')">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button class="btn btn-small btn-danger">Lemondás</button>
+        </form>
+      <% } %>
+    </div>
+  </div>
+<% } %>
+
+<h2>Közelgő időpontok</h2>
+<% if (!upcoming.length) { %><p class="muted">Nincs közelgő foglalása.</p><% } %>
+<div class="list-cards"><% upcoming.forEach(function (b) { row(b, Date.parse(b.start_utc) > Date.now()); }) %></div>
+
+<h2>Szinkronizálás a saját naptárába</h2>
+<section class="card stack">
+  <p>Iratkozzon fel a foglalásaira a saját naptárában – az új foglalások és a lemondások ezután <strong>maguktól</strong> megjelennek.
+    Nincs korlát: bármennyi foglalás és bármennyi eszköz feliratkozhat.</p>
+  <div class="actions">
+    <a class="btn btn-primary" href="<%= cal.google %>" target="_blank" rel="noopener">Hozzáadás a Google Naptárhoz</a>
+    <a class="btn" href="<%= cal.webcal %>">Apple / Outlook naptár</a>
+  </div>
+  <label>Naptárlink (más naptárakhoz: „Feliratkozás URL alapján”)
+    <span class="share"><input readonly value="<%= cal.https %>" id="cal-link" onclick="this.select()"><button type="button" class="btn btn-small" data-copy="<%= cal.https %>">Másolás</button></span>
+  </label>
+  <p class="muted small">A Google Naptár a feliratkozott naptárakat néhány óránként frissíti (ezt a Google szabja meg, nem állítható), az Apple és az Outlook általában óránként.
+    A link személyes: ne ossza meg. Ha mégis kikerült, készítsen újat.</p>
+  <form method="post" action="/fiok/naptar-uj-link" class="inline">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <button class="btn btn-small btn-ghost">Új naptárlink készítése</button>
+  </form>
+</section>
+
+<% if (past.length) { %>
+<h2>Korábbi időpontok</h2>
+<div class="list-cards"><% past.forEach(function (b) { row(b, false); }) %></div>
+<% } %>
+
+<h2>Fiókbeállítások</h2>
+<div class="grid">
+  <form method="post" action="/fiok/adatok" class="card stack">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <h3>Adataim</h3>
+    <label>Név<input name="name" required value="<%= client.name %>" autocomplete="name"></label>
+    <label>E-mail<input value="<%= client.email %>" readonly></label>
+    <label>Telefon<input name="phone" value="<%= client.phone %>" autocomplete="tel"></label>
+    <label>Jelenlegi jelszó (csak jelszócseréhez)<input name="current_password" type="password" autocomplete="current-password"></label>
+    <label>Új jelszó<input name="new_password" type="password" minlength="8" autocomplete="new-password"></label>
+    <button class="btn btn-primary">Mentés</button>
+  </form>
+  <div class="card stack">
+    <h3>Kétfaktoros hitelesítés</h3>
+    <p class="muted"><%= twoFactor ? 'Bekapcsolva ✓' : 'Nincs bekapcsolva. Nem kötelező, de védi a fiókját, ha a jelszava illetéktelen kézbe kerül.' %></p>
+    <div><a class="btn" href="/fiok/2fa"><%= twoFactor ? 'Kezelés' : 'Bekapcsolás' %></a></div>
+    <h3>Fiók törlése</h3>
+    <form method="post" action="/fiok/torles" class="stack" onsubmit="return confirm('Biztosan törli a fiókját?')">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label>Jelszó<input name="password" type="password" required autocomplete="current-password"></label>
+      <button class="btn btn-danger">Fiók törlése</button>
+    </form>
+  </div>
+</div>
+<script src="/admin.js"></script>
+<%- include('../partials/footer') %>

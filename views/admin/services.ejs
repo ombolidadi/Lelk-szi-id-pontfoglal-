@@ -1,0 +1,22 @@
+<%- include('../partials/header') %>
+<div class="row-between">
+  <h1>Szolgáltatások</h1>
+  <% if (currentUser.role === 'admin') { %><a class="btn btn-primary" href="/admin/services/new">+ Új szolgáltatás</a><% } %>
+</div>
+<p class="muted">Jelölje be, mely szolgáltatásokra lehet Önhöz időpontot foglalni.</p>
+
+<form method="post" action="/admin/services/mine">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <div class="grid">
+  <% services.forEach(function (s) { %>
+    <div class="card service-card <%= s.active ? '' : 'inactive' %>" style="--accent: <%= s.color %>">
+      <label class="check"><input type="checkbox" name="services" value="<%= s.id %>" <%= mine.has(s.id) ? 'checked' : '' %>> <strong><%= s.name %></strong></label>
+      <p class="meta"><%= s.duration_min %> perc<% if (s.buffer_min) { %> + <%= s.buffer_min %> perc szünet<% } %><% if (s.location) { %> · <%= s.location %><% } %><% if (!s.active) { %> · <em>inaktív</em><% } %></p>
+      <p class="meta">Lelkészek: <%= links.filter(function (l) { return l.service_id === s.id; }).map(function (l) { return l.name; }).join(', ') || '–' %></p>
+      <% if (currentUser.role === 'admin') { %><a href="/admin/services/<%= s.id %>">Szerkesztés</a><% } %>
+    </div>
+  <% }) %>
+  </div>
+  <button class="btn btn-primary">Mentés</button>
+</form>
+<%- include('../partials/footer') %>
