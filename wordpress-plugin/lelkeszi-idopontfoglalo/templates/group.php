@@ -5,39 +5,73 @@
 	<p><?php echo esc_html( $group->description ? $group->description : 'Foglaljon időpontot lelkészeinkhez beszélgetésre, lelkigondozásra vagy egyéb alkalomra.' ); ?></p>
 </section>
 
-<?php if ( ! $user->exists() ) : ?>
-	<p class="muted small">Van fiókja? <a href="<?php echo esc_url( add_query_arg( 'vissza', rawurlencode( lif_group_url( $group ) ), lif_url( '/fiok/belepes' ) ) ); ?>">Jelentkezzen be</a>, hogy egy helyen lássa a foglalásait, és a saját naptárába szinkronizálhassa őket. Fiók nélkül is foglalhat.</p>
-<?php endif; ?>
+<?php if ( $error ) : ?><div class="alert alert-error" id="form-error"><?php echo esc_html( $error ); ?></div><?php endif; ?>
 
-<h2>Válasszon szolgáltatást</h2>
-<?php if ( ! $services ) : ?>
-	<p class="muted">Jelenleg nincs foglalható szolgáltatás.</p>
-<?php endif; ?>
-<div class="grid">
-	<?php foreach ( $services as $s ) : ?>
-		<a class="card service-card" href="<?php echo esc_url( lif_url( '/' . $group->slug . '/' . $s->slug ) ); ?>" style="--accent: <?php echo esc_attr( $s->color ); ?>">
-			<h3><?php echo esc_html( $s->name ); ?></h3>
-			<?php if ( $s->description ) : ?><p><?php echo esc_html( $s->description ); ?></p><?php endif; ?>
-			<p class="meta"><?php echo (int) $s->duration_min; ?> perc<?php echo $s->location ? ' · ' . esc_html( $s->location ) : ''; ?></p>
-			<span class="btn btn-small">Időpontot foglalok</span>
-		</a>
-	<?php endforeach; ?>
-</div>
+<?php if ( ! $pastors ) : ?>
+	<p class="muted">Jelenleg nincs foglalható időpont ebben a csoportban.</p>
+<?php else : ?>
+<form method="post" id="booking-form" class="wizard" novalidate data-lif="<?php echo esc_attr( wp_json_encode( $data ) ); ?>">
+	<?php lif_nonce_field(); ?>
+	<input type="hidden" name="pastor" id="f-pastor">
+	<input type="hidden" name="service" id="f-service">
+	<input type="hidden" name="start" id="f-start">
 
-<?php if ( $pastors ) : ?>
-<h2>Lelkészeink</h2>
-<div class="grid">
-	<?php foreach ( $pastors as $p ) : $u = $p['user']; $meta = array_filter( array( lif_pastor_meta( $u->ID, 'title' ), lif_pastor_meta( $u->ID, 'congregation' ) ) ); ?>
-		<div class="card">
-			<h3><?php echo esc_html( $u->display_name ); ?></h3>
-			<?php if ( $meta ) : ?><p class="meta"><?php echo esc_html( implode( ' · ', $meta ) ); ?></p><?php endif; ?>
-			<?php if ( $u->description ) : ?><p><?php echo esc_html( $u->description ); ?></p><?php endif; ?>
-			<div class="chips">
-				<?php foreach ( $p['services'] as $s ) : ?>
-					<a class="chip" href="<?php echo esc_url( add_query_arg( 'lelkesz', $u->ID, lif_url( '/' . $group->slug . '/' . $s->slug ) ) ); ?>"><?php echo esc_html( $s->name ); ?></a>
-				<?php endforeach; ?>
-			</div>
+	<section class="card step" id="step-pastor">
+		<h2><span class="step-no">1</span> Kinél szeretne időpontot foglalni?</h2>
+		<div class="choice-grid" id="pastor-list"></div>
+	</section>
+
+	<section class="card step" id="step-service" hidden>
+		<h2><span class="step-no">2</span> Milyen alkalomra szeretne időpontot?</h2>
+		<div class="choice-grid" id="service-list"></div>
+	</section>
+
+	<section class="card step" id="step-time" hidden>
+		<h2><span class="step-no">3</span> Mikor?</h2>
+		<div class="week-nav">
+			<button type="button" class="btn btn-ghost" id="prev-week">‹ Előző</button>
+			<strong id="week-label"></strong>
+			<button type="button" class="btn btn-ghost" id="next-week">Következő ›</button>
 		</div>
-	<?php endforeach; ?>
-</div>
+		<div id="slots" class="slots" aria-live="polite"></div>
+	</section>
+
+	<section class="card step" id="step-details" hidden>
+		<div class="summary" id="summary"></div>
+
+		<?php if ( ! $user->exists() ) : ?>
+			<div class="optional-login">
+				<p><strong>Van fiókja?</strong> <a id="login-link" href="<?php echo esc_url( lif_url( '/fiok/belepes' ) ); ?>">Jelentkezzen be</a> – akkor nem kell kitöltenie az adatait, és egy helyen látja az időpontjait. A választása megmarad.</p>
+				<p class="muted small">A bejelentkezés nem kötelező: fiók nélkül is foglalhat, elég a neve és egy elérhetőség.</p>
+			</div>
+		<?php else : ?>
+			<p class="muted small">Bejelentkezve: <strong><?php echo esc_html( $user->display_name ); ?></strong> – adatait kitöltöttük. A foglalás megjelenik a Foglalásaim oldalon.</p>
+		<?php endif; ?>
+
+		<h2><span class="step-no">4</span> Adatai</h2>
+		<div class="form-grid">
+			<label>Név *<input name="name" id="f-name" maxlength="120" value="<?php echo esc_attr( $form['name'] ?? '' ); ?>" autocomplete="name"></label>
+			<label>E-mail<input name="email" id="f-email" type="email" maxlength="200" value="<?php echo esc_attr( $form['email'] ?? '' ); ?>" autocomplete="email" <?php echo $user->exists() ? 'readonly' : ''; ?>></label>
+			<label>Telefon<input name="phone" id="f-phone" type="tel" maxlength="40" value="<?php echo esc_attr( $form['phone'] ?? '' ); ?>" autocomplete="tel" placeholder="pl. +36 30 123 4567"></label>
+		</div>
+		<p class="muted small">* A név kötelező, és adjon meg <strong>legalább egy elérhetőséget</strong> (e-mail vagy telefon). Visszaigazolást e-mailben küldünk, ha megadja.</p>
+		<label>Megjegyzés (nem kötelező)<textarea name="note" rows="3" maxlength="2000" placeholder="Miben segíthetünk?"><?php echo esc_textarea( $form['note'] ?? '' ); ?></textarea></label>
+
+		<?php if ( ! $user->exists() ) : ?>
+			<div class="register-offer">
+				<label class="check"><input type="checkbox" name="register" id="f-register" <?php checked( ! empty( $_POST['register'] ) ); ?>> <span><strong>Fiókot is létrehozok</strong> (nem kötelező) – így később bejelentkezve látom és lemondhatom az időpontjaimat, és a saját naptáramba szinkronizálhatom őket.</span></label>
+				<div class="form-grid" id="register-fields" hidden>
+					<label>Jelszó (legalább 8 karakter)<input name="password" id="f-password" type="password" minlength="8" autocomplete="new-password"></label>
+					<label>Jelszó még egyszer<input name="password2" id="f-password2" type="password" minlength="8" autocomplete="new-password"></label>
+					<p class="muted small full-row">A fiókhoz az e-mail címével lép majd be, ezért azt is adja meg.</p>
+				</div>
+			</div>
+		<?php endif; ?>
+
+		<label class="check"><input type="checkbox" name="consent" id="f-consent"> <span>Elolvastam és elfogadom az <a href="<?php echo esc_url( lif_url( '/adatkezeles' ) ); ?>" target="_blank">adatkezelési tájékoztatót</a>.</span></label>
+		<div id="client-error" class="alert alert-error" hidden></div>
+		<button class="btn btn-primary" id="submit">Időpont lefoglalása</button>
+	</section>
+</form>
+<script src="<?php echo esc_url( LIF_URL . 'assets/booking.js?v=' . LIF_VERSION ); ?>"></script>
 <?php endif; ?>

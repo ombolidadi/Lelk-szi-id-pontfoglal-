@@ -158,48 +158,58 @@ function lif_dispatch( $path ) {
 
 /* ---------- Csoport és foglalás ---------- */
 
-function lif_route_group( $group ) {
+/**
+ * A csoport foglalási adatai: a csoport aktív lelkészei a szolgáltatásaikkal, és a szolgáltatások.
+ * Csak olyan lelkész és szolgáltatás szerepel, akihez/amire ebben a csoportban ténylegesen foglalni lehet.
+ */
+function lif_group_catalog( $group ) {
 	global $wpdb;
 	$members  = lif_group_member_ids( $group->id );
 	$services = array();
-	$pastors  = array();
 	foreach ( $wpdb->get_results( 'SELECT * FROM ' . lif_t( 'services' ) . ' WHERE active = 1 ORDER BY sort, name' ) as $s ) {
 		$ids = array_values( array_intersect( lif_pastor_ids_for_service( $s->id ), $members ) );
 		if ( $ids ) {
-			$s->pastor_ids = $ids;
-			$services[]    = $s;
+			$s->pastor_ids          = $ids;
+			$services[ (int) $s->id ] = $s;
 		}
 	}
+	$pastors = array();
 	foreach ( $members as $uid ) {
 		$u = get_userdata( $uid );
-		if ( $u && lif_is_active_pastor( $u ) ) {
-			$offered = array_filter( $services, function ( $s ) use ( $uid ) {
-				return in_array( $uid, $s->pastor_ids, true );
-			} );
-			if ( $offered ) {
-				$pastors[] = array( 'user' => $u, 'services' => $offered );
-			}
+		if ( ! $u || ! lif_is_active_pastor( $u ) ) {
+			continue;
+		}
+		$offered = array_keys( array_filter( $services, function ( $s ) use ( $uid ) {
+			return in_array( $uid, $s->pastor_ids, true );
+		} ) );
+		if ( $offered ) {
+			$pastors[ $uid ] = array( 'user' => $u, 'services' => $offered );
 		}
 	}
-	usort( $pastors, function ( $a, $b ) {
+	uasort( $pastors, function ( $a, $b ) {
 		return strcmp( remove_accents( $a['user']->display_name ), remove_accents( $b['user']->display_name ) );
 	} );
-	lif_render( 'group', compact( 'group', 'services', 'pastors' ), $group->name );
+	return array( $pastors, $services );
 }
 
-function lif_route_book( $group, $service_slug ) {
-	$service = lif_service_by_slug( $service_slug );
-	$ids     = $service ? lif_group_pastors_for_service( $group, $service->id ) : array();
-	if ( ! $service || ! $ids ) {
-		return lif_not_found( 'Ez a szolgáltatás ebben a csoportban nem foglalható.' );
-	}
-	$pastors = array_map( 'get_userdata', $ids );
-	$user    = wp_get_current_user();
-	$form    = $user->exists()
+/**
+ * Foglalás a csoport oldalán, lépésenként:
+ * 1. kinél (lelkész)  2. milyen alkalomra (szolgáltatás)  3. mikor (időpont)
+ * utána a bejelentkezés felajánlása, majd az adatok – a foglaláskor fiók is létrehozható (nem kötelező).
+ */
+function lif_route_group( $group ) {
+	list( $pastors, $services ) = lif_group_catalog( $group );
+	$user  = wp_get_current_user();
+	$error = null;
+	$form  = $user->exists()
 		? array( 'name' => $user->display_name, 'email' => $user->user_email, 'phone' => (string) get_user_meta( $user->ID, 'lif_phone', true ) )
 		: array();
-	$error     = null;
-	$preselect = isset( $_GET['lelkesz'] ) ? (int) $_GET['lelkesz'] : 0;
+	// Előválasztás a linkből (pl. visszatérés a belépésből): ?lelkesz=..&szolgaltatas=..&idopont=..
+	$initial = array(
+		'pastor'  => isset( $_GET['lelkesz'] ) ? sanitize_key( wp_unslash( $_GET['lelkesz'] ) ) : '',
+		'service' => isset( $_GET['szolgaltatas'] ) ? sanitize_title( wp_unslash( $_GET['szolgaltatas'] ) ) : '',
+		'start'   => isset( $_GET['idopont'] ) ? sanitize_text_field( wp_unslash( $_GET['idopont'] ) ) : '',
+	);
 
 	if ( lif_is_post() ) {
 		lif_check_nonce();
@@ -208,15 +218,25 @@ function lif_route_book( $group, $service_slug ) {
 			'email'  => $user->exists() ? $user->user_email : lif_post( 'email', 200 ),
 			'phone'  => lif_post( 'phone', 40 ),
 			'note'   => lif_post( 'note', 2000 ),
-			'start'  => lif_post( 'start', 30 ),
-			'pastor' => lif_post( 'pastor', 20 ),
 		);
-		$preselect = (int) $form['pastor'];
-		$choose    = 'any' === $form['pastor'] || '' === $form['pastor'] ? $ids : array_values( array_intersect( $ids, array( (int) $form['pastor'] ) ) );
-		$start_ts  = strtotime( $form['start'] );
-		// Bejelentkezés nem kell: a név kötelező, mellé legalább egy elérhetőség (e-mail vagy telefon).
+		$register = ! $user->exists() && ! empty( $_POST['register'] );
+		$pw       = isset( $_POST['password'] ) ? (string) wp_unslash( $_POST['password'] ) : '';
+		$pw2      = isset( $_POST['password2'] ) ? (string) wp_unslash( $_POST['password2'] ) : '';
+		$service  = $services[ (int) lif_post( 'service', 20 ) ] ?? null;
+		$pick     = lif_post( 'pastor', 20 );
+		$initial  = array( 'pastor' => $pick, 'service' => $service ? $service->slug : '', 'start' => lif_post( 'start', 30 ) );
+		$start_ts = strtotime( $initial['start'] );
+		$choose   = array();
+		if ( $service ) {
+			$choose = 'any' === $pick ? $service->pastor_ids : array_values( array_intersect( $service->pastor_ids, array( (int) $pick ) ) );
+		}
 		$phone_digits = preg_replace( '/\D/', '', $form['phone'] );
-		if ( '' === $form['name'] ) {
+
+		if ( ! $service || ! $choose ) {
+			$error = 'Kérjük, válassza ki a lelkészt és az alkalmat.';
+		} elseif ( ! $start_ts ) {
+			$error = 'Kérjük, válasszon időpontot.';
+		} elseif ( '' === $form['name'] ) {
 			$error = 'Kérjük, adja meg a nevét.';
 		} elseif ( '' === $form['email'] && '' === $form['phone'] ) {
 			$error = 'Kérjük, adjon meg legalább egy elérhetőséget: e-mail címet vagy telefonszámot.';
@@ -224,23 +244,101 @@ function lif_route_book( $group, $service_slug ) {
 			$error = 'Az e-mail cím formátuma nem megfelelő. Javítsa, vagy hagyja üresen, és adjon meg telefonszámot.';
 		} elseif ( '' !== $form['phone'] && ( strlen( $phone_digits ) < 6 || ! preg_match( '/^[0-9 +()\/.-]+$/', $form['phone'] ) ) ) {
 			$error = 'A telefonszám formátuma nem megfelelő (pl. +36 30 123 4567).';
-		} elseif ( ! $start_ts ) {
-			$error = 'Kérjük, válasszon időpontot.';
+		} elseif ( $register && '' === $form['email'] ) {
+			$error = 'A fiók létrehozásához adja meg az e-mail címét (ezzel fog belépni).';
+		} elseif ( $register && email_exists( $form['email'] ) ) {
+			$error = 'Ezzel az e-mail címmel már van fiók. Jelentkezzen be, vagy foglaljon fiók létrehozása nélkül.';
+		} elseif ( $register && strlen( $pw ) < 8 ) {
+			$error = 'A fiók jelszava legalább 8 karakter legyen.';
+		} elseif ( $register && $pw !== $pw2 ) {
+			$error = 'A két jelszó nem egyezik.';
 		} elseif ( empty( $_POST['consent'] ) ) {
 			$error = 'A foglaláshoz el kell fogadnia az adatkezelést.';
-		} elseif ( ! $choose ) {
-			$error = 'A kiválasztott lelkész nem érhető el ebben a csoportban.';
 		} else {
 			$booking = lif_create_booking( $service, $choose, $start_ts, $form, $user->exists() ? $user->ID : null, $group );
 			if ( is_wp_error( $booking ) ) {
 				$error = $booking->get_error_message();
 			} else {
-				lif_flash( 'success', 'Foglalását rögzítettük!' );
+				$msg = 'Foglalását rögzítettük!';
+				if ( $register ) {
+					$uid = lif_create_client_account( $form['name'], $form['email'], $form['phone'], $pw );
+					if ( is_wp_error( $uid ) ) {
+						$msg .= ' A fiókot nem sikerült létrehozni: ' . $uid->get_error_message();
+					} else {
+						global $wpdb;
+						$wpdb->update( lif_t( 'bookings' ), array( 'client_id' => $uid ), array( 'id' => $booking->id ) );
+						wp_set_auth_cookie( $uid, true, is_ssl() );
+						$msg .= ' Fiókja is elkészült – a Foglalásaim oldalon látja az időpontjait.';
+					}
+				}
+				lif_flash( 'success', $msg );
 				lif_redirect( lif_url( '/foglalas/' . $booking->token ) );
 			}
 		}
 	}
-	lif_render( 'book', compact( 'group', 'service', 'pastors', 'form', 'error', 'preselect' ), $service->name, $error ? 400 : 200 );
+
+	// Adatok a lépésenkénti foglalóhoz (böngészőoldali megjelenítés)
+	$data = array(
+		'api'      => rest_url( 'lif/v1/slots' ),
+		'group'    => $group->slug,
+		'groupUrl' => lif_group_url( $group ),
+		'loginUrl' => lif_url( '/fiok/belepes' ),
+		'pastors'  => array(),
+		'services' => array(),
+		'initial'  => $initial,
+	);
+	foreach ( $pastors as $uid => $p ) {
+		$data['pastors'][] = array(
+			'id'       => $uid,
+			'name'     => $p['user']->display_name,
+			'meta'     => implode( ' · ', array_filter( array( lif_pastor_meta( $uid, 'title' ), lif_pastor_meta( $uid, 'congregation' ) ) ) ),
+			'bio'      => (string) $p['user']->description,
+			'services' => $p['services'],
+		);
+	}
+	foreach ( $services as $s ) {
+		$data['services'][] = array(
+			'id'          => (int) $s->id,
+			'slug'        => $s->slug,
+			'name'        => $s->name,
+			'description' => (string) $s->description,
+			'duration'    => (int) $s->duration_min,
+			'location'    => (string) $s->location,
+			'color'       => $s->color,
+		);
+	}
+	lif_render( 'group', compact( 'group', 'pastors', 'services', 'form', 'error', 'data' ), $group->name, $error ? 400 : 200 );
+}
+
+function lif_create_client_account( $name, $email, $phone, $password ) {
+	$login = sanitize_user( strstr( $email, '@', true ), true );
+	$login = $login ? $login : 'foglalo';
+	$base  = $login;
+	for ( $i = 2; username_exists( $login ); $i++ ) {
+		$login = $base . $i;
+	}
+	$uid = wp_insert_user( array(
+		'user_login'   => $login,
+		'user_email'   => $email,
+		'user_pass'    => $password,
+		'display_name' => $name,
+		'first_name'   => $name,
+		'role'         => 'lif_client',
+	) );
+	if ( ! is_wp_error( $uid ) ) {
+		update_user_meta( $uid, 'lif_phone', $phone );
+		update_user_meta( $uid, 'lif_calendar_token', lif_random( 24 ) );
+	}
+	return $uid;
+}
+
+/** Régi, szolgáltatásonkénti link: átirányít a csoport foglalóoldalára, előválasztott szolgáltatással. */
+function lif_route_book( $group, $service_slug ) {
+	$args = array( 'szolgaltatas' => sanitize_title( $service_slug ) );
+	if ( isset( $_GET['lelkesz'] ) ) {
+		$args['lelkesz'] = (int) $_GET['lelkesz'];
+	}
+	lif_redirect( add_query_arg( $args, lif_group_url( $group ) ) );
 }
 
 function lif_google_calendar_link( $b, $pastor_name ) {
@@ -343,25 +441,10 @@ function lif_route_account( $sub ) {
 				} elseif ( email_exists( $form['email'] ) ) {
 					$error = 'Ezzel az e-mail címmel már van fiók. Jelentkezzen be.';
 				} else {
-					$login = sanitize_user( strstr( $form['email'], '@', true ), true );
-					$login = $login ? $login : 'foglalo';
-					$base  = $login;
-					for ( $i = 2; username_exists( $login ); $i++ ) {
-						$login = $base . $i;
-					}
-					$uid = wp_insert_user( array(
-						'user_login'   => $login,
-						'user_email'   => $form['email'],
-						'user_pass'    => $pw,
-						'display_name' => $form['name'],
-						'first_name'   => $form['name'],
-						'role'         => 'lif_client',
-					) );
+					$uid = lif_create_client_account( $form['name'], $form['email'], $form['phone'], $pw );
 					if ( is_wp_error( $uid ) ) {
 						$error = $uid->get_error_message();
 					} else {
-						update_user_meta( $uid, 'lif_phone', $form['phone'] );
-						update_user_meta( $uid, 'lif_calendar_token', lif_random( 24 ) );
 						wp_set_auth_cookie( $uid, true, is_ssl() );
 						lif_flash( 'success', 'Fiókja elkészült. Kétfaktoros hitelesítést a Foglalásaim oldalon kapcsolhat be.' );
 						lif_redirect( $back ? $back : lif_url( '/fiok' ) );

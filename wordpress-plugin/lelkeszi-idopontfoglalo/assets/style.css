@@ -1,3 +1,4 @@
+[hidden] { display: none !important; }
 :root {
   --bg: #f6f4ef;
   --surface: #ffffff;
@@ -177,3 +178,18 @@ tr.cancelled td { opacity: .55; }
 .qr img, .qr svg { width: 220px; height: 220px; }
 .optional-login { background: var(--primary-soft); border-radius: 8px; padding: .7rem 1rem; margin-bottom: 1rem; }
 .optional-login p { margin: .2rem 0; }
+/* Lépésenkénti foglalás */
+.wizard .step { margin-bottom: 1rem; }
+.wizard h2 { display: flex; align-items: center; gap: .6rem; margin: 0 0 1rem; }
+.step-no { display: inline-grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--primary); color: var(--surface); font-family: system-ui, sans-serif; font-size: .95rem; flex: none; }
+.choice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .6rem; }
+.choice { display: flex; flex-direction: column; gap: .2rem; text-align: left; padding: .8rem 1rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.choice:hover { border-color: var(--primary); }
+.choice[aria-pressed="true"] { border-color: var(--primary); background: var(--primary-soft); box-shadow: inset 0 0 0 1px var(--primary); }
+.choice small { color: var(--muted); }
+.choice .bio { color: var(--muted); font-size: .88rem; }
+.service-choice { border-left: 4px solid var(--accent, var(--primary)); }
+.summary { padding: .6rem 0 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+.summary p { margin: .2rem 0 0; font-weight: 600; }
+.register-offer { border: 1px dashed var(--border); border-radius: 8px; padding: .8rem 1rem; margin-bottom: 1rem; }
+.register-offer .form-grid { margin-top: .8rem; }
