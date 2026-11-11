@@ -34,15 +34,19 @@
 
 	<h2>3. Adatai</h2>
 	<?php if ( $user->exists() ) : ?>
-		<p class="muted small">Bejelentkezve: <strong><?php echo esc_html( $user->user_email ); ?></strong>. A foglalás megjelenik a Foglalásaim oldalon és a naptár-feliratkozásában.</p>
+		<p class="muted small">Bejelentkezve: <strong><?php echo esc_html( $user->display_name ); ?></strong> – adatait kitöltöttük. A foglalás megjelenik a Foglalásaim oldalon és a naptár-feliratkozásában.</p>
 	<?php else : ?>
-		<p class="muted small">Van fiókja? <a href="<?php echo esc_url( add_query_arg( 'vissza', rawurlencode( lif_url( '/' . $group->slug . '/' . $service->slug ) ), lif_url( '/fiok/belepes' ) ) ); ?>">Jelentkezzen be</a> – vagy <a href="<?php echo esc_url( add_query_arg( 'vissza', rawurlencode( lif_url( '/' . $group->slug . '/' . $service->slug ) ), lif_url( '/fiok/regisztracio' ) ) ); ?>">hozzon létre egyet</a>, hogy lássa a foglalásait és a saját naptárába szinkronizálhassa őket.</p>
+		<div class="optional-login">
+			<p><strong>Bejelentkezés nem szükséges</strong> – elég a neve és egy elérhetőség.</p>
+			<p class="muted small">Ha van fiókja, <a href="<?php echo esc_url( add_query_arg( 'vissza', rawurlencode( lif_url( '/' . $group->slug . '/' . $service->slug ) ), lif_url( '/fiok/belepes' ) ) ); ?>">belépés</a> után nem kell kitöltenie az adatait, és egy helyen látja az időpontjait. <a href="<?php echo esc_url( add_query_arg( 'vissza', rawurlencode( lif_url( '/' . $group->slug . '/' . $service->slug ) ), lif_url( '/fiok/regisztracio' ) ) ); ?>">Fiókot is létrehozhat</a>, de ez nem kötelező.</p>
+		</div>
 	<?php endif; ?>
 	<div class="form-grid">
 		<label>Név *<input name="name" required maxlength="120" value="<?php echo esc_attr( $form['name'] ?? '' ); ?>" autocomplete="name"></label>
-		<label>E-mail *<input name="email" type="email" required maxlength="200" value="<?php echo esc_attr( $form['email'] ?? '' ); ?>" autocomplete="email" <?php echo $user->exists() ? 'readonly' : ''; ?>></label>
-		<label>Telefon<input name="phone" type="tel" maxlength="40" value="<?php echo esc_attr( $form['phone'] ?? '' ); ?>" autocomplete="tel"></label>
+		<label>E-mail<input name="email" type="email" maxlength="200" value="<?php echo esc_attr( $form['email'] ?? '' ); ?>" autocomplete="email" <?php echo $user->exists() ? 'readonly' : ''; ?>></label>
+		<label>Telefon<input name="phone" type="tel" maxlength="40" value="<?php echo esc_attr( $form['phone'] ?? '' ); ?>" autocomplete="tel" placeholder="pl. +36 30 123 4567"></label>
 	</div>
+	<p class="muted small">* A név kötelező, és adjon meg <strong>legalább egy elérhetőséget</strong> (e-mail vagy telefon), hogy szükség esetén fel tudjuk venni Önnel a kapcsolatot. Visszaigazolást e-mailben küldünk, ha megadja.</p>
 	<label>Megjegyzés (nem kötelező)<textarea name="note" rows="3" maxlength="2000" placeholder="Miben segíthetünk?"><?php echo esc_textarea( $form['note'] ?? '' ); ?></textarea></label>
 	<label class="check"><input type="checkbox" name="consent" required> <span>Elolvastam és elfogadom az <a href="<?php echo esc_url( lif_url( '/adatkezeles' ) ); ?>" target="_blank">adatkezelési tájékoztatót</a>.</span></label>
 	<button class="btn btn-primary" id="submit" disabled>Időpont lefoglalása</button>

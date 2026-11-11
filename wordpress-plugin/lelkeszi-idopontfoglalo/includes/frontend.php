@@ -214,10 +214,16 @@ function lif_route_book( $group, $service_slug ) {
 		$preselect = (int) $form['pastor'];
 		$choose    = 'any' === $form['pastor'] || '' === $form['pastor'] ? $ids : array_values( array_intersect( $ids, array( (int) $form['pastor'] ) ) );
 		$start_ts  = strtotime( $form['start'] );
+		// Bejelentkezés nem kell: a név kötelező, mellé legalább egy elérhetőség (e-mail vagy telefon).
+		$phone_digits = preg_replace( '/\D/', '', $form['phone'] );
 		if ( '' === $form['name'] ) {
 			$error = 'Kérjük, adja meg a nevét.';
-		} elseif ( ! is_email( $form['email'] ) ) {
-			$error = 'Kérjük, adjon meg érvényes e-mail címet.';
+		} elseif ( '' === $form['email'] && '' === $form['phone'] ) {
+			$error = 'Kérjük, adjon meg legalább egy elérhetőséget: e-mail címet vagy telefonszámot.';
+		} elseif ( '' !== $form['email'] && ! is_email( $form['email'] ) ) {
+			$error = 'Az e-mail cím formátuma nem megfelelő. Javítsa, vagy hagyja üresen, és adjon meg telefonszámot.';
+		} elseif ( '' !== $form['phone'] && ( strlen( $phone_digits ) < 6 || ! preg_match( '/^[0-9 +()\/.-]+$/', $form['phone'] ) ) ) {
+			$error = 'A telefonszám formátuma nem megfelelő (pl. +36 30 123 4567).';
 		} elseif ( ! $start_ts ) {
 			$error = 'Kérjük, válasszon időpontot.';
 		} elseif ( empty( $_POST['consent'] ) ) {

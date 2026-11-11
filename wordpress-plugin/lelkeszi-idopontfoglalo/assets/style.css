@@ -175,3 +175,5 @@ tr.cancelled td { opacity: .55; }
 .stack.tight { gap: .2rem; }
 .qr { margin: .6rem 0; display: inline-block; background: #fff; padding: 8px; border-radius: 8px; border: 1px solid var(--border); line-height: 0; }
 .qr img, .qr svg { width: 220px; height: 220px; }
+.optional-login { background: var(--primary-soft); border-radius: 8px; padding: .7rem 1rem; margin-bottom: 1rem; }
+.optional-login p { margin: .2rem 0; }

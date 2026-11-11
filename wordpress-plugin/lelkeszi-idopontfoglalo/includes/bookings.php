@@ -91,7 +91,7 @@ function lif_create_booking( $service, $pastor_ids, $start_ts, $client, $client_
 		'description'    => implode( "\n", array_filter( array(
 			'Szolgáltatás: ' . $service->name,
 			'Név: ' . $client['name'],
-			'E-mail: ' . $client['email'],
+			$client['email'] ? 'E-mail: ' . $client['email'] : '',
 			$client['phone'] ? 'Telefon: ' . $client['phone'] : '',
 			$client['note'] ? "\nMegjegyzés:\n" . $client['note'] : '',
 			"\nLemondás: " . $link,
@@ -99,7 +99,7 @@ function lif_create_booking( $service, $pastor_ids, $start_ts, $client, $client_
 		'location'       => $service->location,
 		'start'          => $start_ts,
 		'end'            => $end_ts,
-		'attendee_email' => $client['email'],
+		'attendee_email' => $client['email'], // üres, ha a vendég csak telefonszámot adott meg
 		'attendee_name'  => $client['name'],
 		'invite'         => ! empty( $settings['invite_client'] ),
 	) );
@@ -120,7 +120,7 @@ function lif_create_booking( $service, $pastor_ids, $start_ts, $client, $client_
 		. ( $service->location ? "Helyszín: {$service->location}\n" : '' )
 		. "\nHa mégsem tud eljönni, itt lemondhatja: $link\n\nÁldás és békesség!\n{$settings['org_name']}" );
 	lif_mail( $pastor->user_email, 'Új foglalás: ' . $service->name . ' – ' . $client['name'],
-		"Új időpontfoglalás érkezett.\n\nSzolgáltatás: {$service->name}\nIdőpont: $when\nNév: {$client['name']}\nE-mail: {$client['email']}\n"
+		"Új időpontfoglalás érkezett.\n\nSzolgáltatás: {$service->name}\nIdőpont: $when\nNév: {$client['name']}\n" . ( $client['email'] ? "E-mail: {$client['email']}\n" : '' )
 		. ( $client['phone'] ? "Telefon: {$client['phone']}\n" : '' ) . ( $client['note'] ? "Megjegyzés: {$client['note']}\n" : '' ) );
 
 	return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $t WHERE id = %d", $booking_id ) );

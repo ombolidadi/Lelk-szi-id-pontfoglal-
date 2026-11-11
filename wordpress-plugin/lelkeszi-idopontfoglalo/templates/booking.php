@@ -5,7 +5,7 @@
 		<p>Ez a foglalás le lett mondva.</p>
 	<?php else : ?>
 		<h1>Foglalás visszaigazolása</h1>
-		<p>Köszönjük! Időpontját rögzítettük. Kérjük, mentse el ezt az oldalt (vagy a linkjét), ha később le szeretné mondani.</p>
+		<p>Köszönjük! Időpontját rögzítettük. Kérjük, <strong>mentse el ezt az oldalt</strong> (vagy a linkjét), ha később le szeretné mondani<?php echo $b->client_email ? ' – a linket e-mailben is elküldtük' : ''; ?>.</p>
 	<?php endif; ?>
 	<dl class="details">
 		<dt>Szolgáltatás</dt><dd><?php echo esc_html( $b->service_name ); ?></dd>
@@ -13,7 +13,8 @@
 		<dt>Időpont</dt><dd><?php echo esc_html( $when ); ?></dd>
 		<?php if ( $b->location ) : ?><dt>Helyszín</dt><dd><?php echo esc_html( $b->location ); ?></dd><?php endif; ?>
 		<dt>Név</dt><dd><?php echo esc_html( $b->client_name ); ?></dd>
-		<dt>E-mail</dt><dd><?php echo esc_html( $b->client_email ); ?></dd>
+		<?php if ( $b->client_email ) : ?><dt>E-mail</dt><dd><?php echo esc_html( $b->client_email ); ?></dd><?php endif; ?>
+		<?php if ( $b->client_phone ) : ?><dt>Telefon</dt><dd><?php echo esc_html( $b->client_phone ); ?></dd><?php endif; ?>
 	</dl>
 	<?php if ( 'confirmed' === $b->status && ! $is_past ) : ?>
 		<p class="actions">

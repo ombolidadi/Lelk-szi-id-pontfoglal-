@@ -137,7 +137,7 @@ function lif_page_bookings() {
 		if ( $all ) {
 			echo '<td>' . esc_html( $pastor ? $pastor->display_name : '–' ) . '</td>';
 		}
-		echo '<td><strong>' . esc_html( $b->client_name ) . '</strong><br>' . esc_html( $b->client_email ) . ( $b->client_phone ? '<br>' . esc_html( $b->client_phone ) : '' );
+		echo '<td><strong>' . esc_html( $b->client_name ) . '</strong><br>' . implode( '<br>', array_map( 'esc_html', array_filter( array( $b->client_email, $b->client_phone ) ) ) );
 		if ( $b->note ) {
 			echo '<div class="lif-note">' . esc_html( $b->note ) . '</div>';
 		}

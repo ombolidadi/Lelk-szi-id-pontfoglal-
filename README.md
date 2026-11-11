@@ -20,7 +20,10 @@ A teljes alkalmazás WordPress-bővítményként is elérhető: `wordpress-plugi
 
 - **Kipróbálás a böngészőben (WordPress Playground), telepítés nélkül:**
   https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/blueprint.json
-  (a repónak nyilvánosnak kell lennie). Belépés: `wp-admin` → `admin` / `password` (webhely-admin), lelkészek: `kiss.peter`, `nagy.anna`, `toth.gabor`, foglaló: `elek@demo.hu` – jelszó mind `demo1234`.
+  (a repónak nyilvánosnak kell lennie).
+- **Lelkészi felület a Playgroundban (bejelentkezve Kiss Péterként):**
+  https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/blueprint-lelkesz.json
+  Belépés máskor: `wp-admin` → `admin` / `password` (webhely-admin), lelkészek: `kiss.peter`, `nagy.anna`, `toth.gabor`, foglaló: `elek@demo.hu` – jelszó mind `demo1234`.
 - **Telepítés éles oldalra:** Bővítmények → Új hozzáadása → Bővítmény feltöltése → a `.zip` → Bekapcsolás. Részletek: `wordpress-plugin/lelkeszi-idopontfoglalo/readme.txt`.
 - Nyilvános oldalak: `/idopont/<csoport-link>/`; lelkészi felület: WordPress admin → „Időpontfoglaló” menü.
 
