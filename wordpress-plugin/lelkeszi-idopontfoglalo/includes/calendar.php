@@ -10,10 +10,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const LIF_CAL_PX_PER_MIN = 1; // 60 képpont egy óra
 
-/** A naptárban megjelenített lelkész (admin más lelkészét is nézheti). */
+/** A naptárban mindenki – az admin is – csak a saját naptárát látja és kezeli. */
 function lif_cal_pastor_id() {
-	$id = isset( $_REQUEST['lelkesz'] ) ? (int) $_REQUEST['lelkesz'] : 0;
-	return ( $id && current_user_can( 'lif_admin' ) && lif_is_active_pastor( $id ) ) ? $id : get_current_user_id();
+	return get_current_user_id();
 }
 
 /** A hét hétfője (helyi idő szerint) a ?het=YYYY-MM-DD alapján, vagy az aktuális hét. */
@@ -151,20 +150,9 @@ function lif_pp_calendar() {
 	echo '<a class="btn btn-small" href="' . esc_url( lif_portal_url( 'naptar', array_merge( $args, array( 'het' => $monday->modify( '+7 days' )->format( 'Y-m-d' ) ) ) ) ) . '">Következő hét ›</a>';
 	echo '<strong class="cal-range">' . esc_html( lif_wdate( 'Y. F j.', $from ) . ' – ' . lif_wdate( 'F j.', $to - 1 ) ) . '</strong>';
 	echo '</div>';
-	if ( current_user_can( 'lif_admin' ) ) {
-		echo '<form method="get" action="' . esc_url( lif_portal_url( 'naptar' ) ) . '" class="cal-who">';
-		if ( ! get_option( 'permalink_structure' ) ) {
-			echo '<input type="hidden" name="lif_path" value="/lelkeszi/naptar/">';
-		}
-		echo '<input type="hidden" name="het" value="' . esc_attr( $monday->format( 'Y-m-d' ) ) . '"><label>Lelkész <select name="lelkesz" onchange="this.form.submit()">';
-		foreach ( lif_pastors() as $p ) {
-			echo '<option value="' . (int) $p->ID . '" ' . selected( $p->ID, $uid, false ) . '>' . esc_html( $p->display_name ) . '</option>';
-		}
-		echo '</select></label></form>';
-	}
 	echo '</div>';
 	echo '<p class="muted small cal-help">Kattintson egy üres helyre új foglaláshoz vagy szünethez, egy bejegyzésre a részletekhez.'
-		. ( get_current_user_id() !== $uid && $who ? ' Most <strong>' . esc_html( $who->display_name ) . '</strong> naptárát látja.' : '' ) . '</p>';
+		. '</p>';
 	echo '<div class="cal-legend"><span class="lg lg-avail">Foglalható idő</span><span class="lg lg-booking">Foglalás</span><span class="lg lg-block">Szünet</span><span class="lg lg-gbusy">Google: foglalt</span><span class="lg lg-off">Távollét</span></div>';
 
 	echo '<div class="cal-scroll"><div class="cal" style="--cal-h:' . (int) ( $minutes * LIF_CAL_PX_PER_MIN ) . 'px">';

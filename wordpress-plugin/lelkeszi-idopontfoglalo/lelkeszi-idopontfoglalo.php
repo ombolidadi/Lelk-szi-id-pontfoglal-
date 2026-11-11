@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Lelkészi Időpontfoglaló
  * Description:       Időpontfoglalás több lelkésznek: csoportonként megosztható foglalási linkek, meghívásos lelkészi regisztráció, opcionális kétfaktoros hitelesítés, foglalói fiók naptár-feliratkozással, lelkészenkénti Google Naptár-szinkron.
- * Version:           2.1.0
+ * Version:           2.2.0
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Lelkészi Időpontfoglaló
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LIF_VERSION', '2.1.0' );
+define( 'LIF_VERSION', '2.2.0' );
 define( 'LIF_FILE', __FILE__ );
 define( 'LIF_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LIF_URL', plugin_dir_url( __FILE__ ) );

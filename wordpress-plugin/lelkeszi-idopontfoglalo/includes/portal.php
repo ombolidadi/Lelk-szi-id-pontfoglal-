@@ -38,12 +38,14 @@ function lif_pform( $do, $attrs = '' ) {
 	echo '<input type="hidden" name="do" value="' . esc_attr( $do ) . '">';
 }
 
+/** Mindenki – az admin is – csak a saját naptárát, foglalásait és elérhetőségét kezeli. */
 function lif_can_manage_pastor( $pastor_id ) {
-	return current_user_can( 'lif_admin' ) || get_current_user_id() === (int) $pastor_id;
+	return get_current_user_id() === (int) $pastor_id;
 }
 
+/** Csoportot létrehozni, szerkeszteni és tagokat beosztani csak az admin tud. */
 function lif_can_edit_group( $group ) {
-	return current_user_can( 'lif_admin' ) || lif_is_group_member( $group->id, get_current_user_id() );
+	return current_user_can( 'lif_admin' );
 }
 
 function lif_portal_render( $sub, $title, $callback ) {
@@ -137,7 +139,7 @@ function lif_portal_login() {
 function lif_pp_bookings() {
 	global $wpdb;
 	$me   = get_current_user_id();
-	$all  = current_user_can( 'lif_admin' ) && ! empty( $_GET['mind'] );
+	$all  = false; // mindenki csak a saját foglalásait látja
 	$past = ! empty( $_GET['korabbi'] );
 	$now  = lif_iso( time() );
 	$sql  = 'SELECT b.*, s.name AS service_name FROM ' . lif_t( 'bookings' ) . ' b JOIN ' . lif_t( 'services' ) . ' s ON s.id = b.service_id WHERE '
@@ -150,7 +152,9 @@ function lif_pp_bookings() {
 		$todo[] = '<a href="' . esc_url( lif_portal_url( 'google' ) ) . '">Kösse be a Google naptárát</a>, hogy a foglalások bekerüljenek, és a meglévő programjai ne legyenek foglalhatók.';
 	}
 	if ( ! $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . lif_t( 'group_members' ) . ' WHERE user_id = %d', $me ) ) ) {
-		$todo[] = 'Még nem tagja egy csoportnak sem, ezért Önhöz nem lehet foglalni. <a href="' . esc_url( lif_portal_url( 'csoportok' ) ) . '">Csoportok</a>';
+		$todo[] = current_user_can( 'lif_admin' )
+			? 'Még nem tagja egy csoportnak sem, ezért Önhöz nem lehet foglalni. Beosztás: <a href="' . esc_url( lif_portal_url( 'csoportok' ) ) . '">Csoportok</a>.'
+			: 'Az adminisztrátor még nem osztotta be egy csoportba sem, ezért Önhöz még nem lehet foglalni.';
 	}
 	if ( ! lif_2fa_enabled( $me ) ) {
 		$todo[] = 'Ajánlott: <a href="' . esc_url( lif_url( '/fiok/2fa' ) ) . '">kapcsolja be a kétfaktoros hitelesítést</a>.';
@@ -162,9 +166,6 @@ function lif_pp_bookings() {
 	echo '<div class="tabs">';
 	echo '<a class="' . ( ! $past ? 'active' : '' ) . '" href="' . esc_url( lif_portal_url( '', $base ) ) . '">Közelgő</a>';
 	echo '<a class="' . ( $past ? 'active' : '' ) . '" href="' . esc_url( lif_portal_url( '', array_merge( $base, array( 'korabbi' => 1 ) ) ) ) . '">Korábbi</a>';
-	if ( current_user_can( 'lif_admin' ) ) {
-		echo '<span class="spacer"></span><a href="' . esc_url( lif_portal_url( '', array( 'korabbi' => $past ? 1 : null, 'mind' => $all ? null : 1 ) ) ) . '">' . ( $all ? 'Csak az enyéim' : 'Minden lelkész' ) . '</a>';
-	}
 	echo '</div>';
 	if ( ! $rows ) {
 		echo '<p class="muted">Nincs megjeleníthető foglalás.</p>';
@@ -196,7 +197,7 @@ function lif_pp_bookings() {
 
 function lif_pp_availability() {
 	global $wpdb;
-	$uid = isset( $_GET['lelkesz'] ) && current_user_can( 'lif_admin' ) ? (int) $_GET['lelkesz'] : get_current_user_id();
+	$uid = get_current_user_id();
 	$who = get_userdata( $uid );
 	if ( get_current_user_id() !== $uid && $who ) {
 		echo '<p class="muted">Lelkész: <strong>' . esc_html( $who->display_name ) . '</strong></p>';
@@ -341,34 +342,35 @@ function lif_pp_service_edit( $id ) {
 
 function lif_pp_groups() {
 	global $wpdb;
-	if ( isset( $_GET['szerkeszt'] ) ) {
+	if ( isset( $_GET['szerkeszt'] ) && current_user_can( 'lif_admin' ) ) {
 		return lif_pp_group_edit( 'uj' === $_GET['szerkeszt'] ? 0 : (int) $_GET['szerkeszt'] );
 	}
-	$me     = get_current_user_id();
-	$groups = $wpdb->get_results( 'SELECT * FROM ' . lif_t( 'groups' ) . ' ORDER BY active DESC, name' );
-	echo '<div class="row-between"><p class="muted" style="max-width:65ch">Egy csoport (pl. gyülekezet vagy munkacsoport) saját foglalási linket kap. Aki ezt megnyitja, csak a csoport lelkészeinél foglalhat időpontot. Közös, mindenkit listázó felület nincs, és a link véletlen végződése miatt kitalálni sem lehet.</p>';
-	echo '<a class="btn btn-primary" href="' . esc_url( lif_portal_url( 'csoportok', array( 'szerkeszt' => 'uj' ) ) ) . '">+ Új csoport</a></div>';
+	$me       = get_current_user_id();
+	$is_admin = current_user_can( 'lif_admin' );
+	// A lelkész csak azokat a csoportokat látja, amelyekbe az admin beosztotta; az admin mindet.
+	$groups = $is_admin
+		? $wpdb->get_results( 'SELECT * FROM ' . lif_t( 'groups' ) . ' ORDER BY active DESC, name' )
+		: $wpdb->get_results( $wpdb->prepare( 'SELECT g.* FROM ' . lif_t( 'groups' ) . ' g JOIN ' . lif_t( 'group_members' ) . ' m ON m.group_id = g.id WHERE m.user_id = %d ORDER BY g.active DESC, g.name', $me ) );
+	if ( $is_admin ) {
+		echo '<div class="row-between"><p class="muted" style="max-width:65ch">Egy csoport (pl. gyülekezet vagy munkacsoport) saját foglalási linket kap. Aki ezt megnyitja, csak a csoport lelkészeinél foglalhat időpontot. A csoportokat és a beosztást csak Ön (adminisztrátor) kezeli – a lelkészek csak a saját csoportjaikat látják.</p>';
+		echo '<a class="btn btn-primary" href="' . esc_url( lif_portal_url( 'csoportok', array( 'szerkeszt' => 'uj' ) ) ) . '">+ Új csoport</a></div>';
+		// Beosztásra váró lelkészek
+		$unassigned = array_filter( lif_pastors(), function ( $p ) use ( $wpdb ) {
+			return ! $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . lif_t( 'group_members' ) . ' WHERE user_id = %d', $p->ID ) );
+		} );
+		if ( $unassigned ) {
+			echo '<div class="card todo"><h3>Csoportba még nem beosztott lelkészek</h3><p class="muted">Hozzájuk addig nem lehet időpontot foglalni, amíg be nem osztja őket egy csoportba (a csoport Szerkesztés gombjával).</p><div class="chips">';
+			foreach ( $unassigned as $p ) {
+				echo '<span class="chip">' . esc_html( $p->display_name ) . '</span>';
+			}
+			echo '</div></div>';
+		}
+	} else {
+		echo '<p class="muted" style="max-width:65ch">Ezekbe a csoportokba osztotta be Önt az adminisztrátor. A foglalási linket megoszthatja; aki megnyitja, csak a csoport lelkészeinél foglalhat. A csoportokat és a beosztást az adminisztrátor kezeli.</p>';
+	}
 
-	$existing = array_map( function ( $g ) {
-		return mb_strtolower( $g->name );
-	}, $groups );
-	$congr    = array();
-	foreach ( lif_pastors() as $p ) {
-		$c = lif_pastor_meta( $p->ID, 'congregation' );
-		if ( $c && ! in_array( mb_strtolower( $c ), $existing, true ) ) {
-			$congr[ $c ] = ( $congr[ $c ] ?? 0 ) + 1;
-		}
-	}
-	if ( $congr ) {
-		echo '<div class="card todo"><h3>Csoport létrehozása gyülekezetből</h3><p class="muted">Ezekhez a gyülekezetekhez még nincs csoport. Egy kattintással létrehozhatja, a gyülekezet lelkészei tagok lesznek.</p><div class="chips">';
-		foreach ( $congr as $name => $n ) {
-			lif_pform( 'group_from_congregation', 'class="inline"' );
-			echo '<input type="hidden" name="congregation" value="' . esc_attr( $name ) . '"><button class="chip chip-btn">+ ' . esc_html( $name ) . ' (' . (int) $n . ' lelkész)</button></form>';
-		}
-		echo '</div></div>';
-	}
 	if ( ! $groups ) {
-		echo '<p class="muted">Még nincs csoport.</p>';
+		echo '<p class="muted">' . ( $is_admin ? 'Még nincs csoport.' : 'Még nem osztották be egy csoportba sem.' ) . '</p>';
 		return;
 	}
 	echo '<div class="grid">';
@@ -400,7 +402,7 @@ function lif_pp_group_edit( $id ) {
 		echo '<div class="alert alert-error">Ezt a csoportot csak a tagjai és az adminisztrátorok szerkeszthetik.</div>';
 		return;
 	}
-	$assigned = $id ? lif_group_member_ids( $id ) : array( get_current_user_id() );
+	$assigned = $id ? lif_group_member_ids( $id ) : array(); // a tagokat az admin jelöli ki
 	echo '<p><a href="' . esc_url( lif_portal_url( 'csoportok' ) ) . '">← Csoportok</a></p><h2>' . ( $id ? 'Csoport szerkesztése' : 'Új csoport' ) . '</h2>';
 	if ( $id && $g->active ) {
 		$url = lif_group_url( $g );
@@ -454,7 +456,6 @@ function lif_pp_pastors() {
 		echo '<td>' . esc_html( $gnames ? implode( ', ', $gnames ) : '–' ) . '</td>';
 		echo '<td>' . ( $p->has_cap( 'lif_admin' ) ? 'Adminisztrátor' : 'Lelkész' ) . ( $inactive ? ' (inaktív)' : '' ) . '</td>';
 		echo '<td>' . ( lif_2fa_enabled( $p->ID ) ? 'Kétfaktoros ✓' : 'Csak jelszó' ) . '</td><td class="actions">';
-		echo '<a class="btn btn-small btn-ghost" href="' . esc_url( lif_portal_url( 'elerhetoseg', array( 'lelkesz' => $p->ID ) ) ) . '">Elérhetőség</a>';
 		lif_pform( 'pastor_action', 'class="inline"' );
 		echo '<input type="hidden" name="id" value="' . (int) $p->ID . '"><button class="btn btn-small btn-ghost" name="what" value="reset">Jelszó-visszaállító link</button>';
 		if ( get_current_user_id() !== $p->ID && ! user_can( $p, 'manage_options' ) ) {
@@ -732,22 +733,11 @@ function lif_portal_handle( $sub, $do ) {
 			$wpdb->delete( lif_t( 'pastor_services' ), array( 'service_id' => $id ) );
 			lif_portal_back( 'szolgaltatasok', 'Szolgáltatás törölve.' );
 
-		case 'group_from_congregation':
-			$name    = $p( 'congregation', 190 );
-			$members = array_filter( lif_pastors(), function ( $u ) use ( $name ) {
-				return lif_pastor_meta( $u->ID, 'congregation' ) === $name;
-			} );
-			if ( '' === $name || ! $members ) {
-				lif_portal_back( 'csoportok', 'Nincs ilyen gyülekezetű lelkész.', array(), true );
-			}
-			$wpdb->insert( lif_t( 'groups' ), array( 'name' => $name, 'slug' => lif_new_group_slug( $name ), 'kind' => 'gyulekezet', 'description' => '', 'active' => 1, 'created_by' => $me ) );
-			$gid = (int) $wpdb->insert_id;
-			foreach ( $members as $u ) {
-				$wpdb->replace( lif_t( 'group_members' ), array( 'group_id' => $gid, 'user_id' => $u->ID ) );
-			}
-			lif_portal_back( 'csoportok', sprintf( '„%s” csoport létrehozva %d lelkésszel.', $name, count( $members ) ), array( 'szerkeszt' => $gid ) );
+		case 'group_from_congregation': // megszűnt: a csoportbeosztás nem automatikus
+			lif_portal_back( 'csoportok', 'A csoportokat és a beosztást az adminisztrátor kézzel kezeli.', array(), true );
 
 		case 'save_group':
+			$need_admin();
 			$id = (int) $p( 'id' );
 			$g  = null;
 			if ( $id ) {
@@ -779,11 +769,7 @@ function lif_portal_handle( $sub, $do ) {
 				$wpdb->insert( lif_t( 'groups' ), array_merge( $data, array( 'created_by' => $me ) ) );
 				$id = (int) $wpdb->insert_id;
 			}
-			$members = $ids( 'members' );
-			// Nem admin lelkész nem zárhatja ki magát véletlenül (különben elveszítené a szerkesztési jogot).
-			if ( ! current_user_can( 'lif_admin' ) && ! in_array( $me, $members, true ) ) {
-				$members[] = $me;
-			}
+			$members = $ids( 'members' ); // csak az admin által bejelölt lelkészek
 			$wpdb->delete( lif_t( 'group_members' ), array( 'group_id' => $id ) );
 			foreach ( array_unique( $members ) as $uid ) {
 				if ( lif_is_active_pastor( $uid ) ) {
@@ -793,6 +779,7 @@ function lif_portal_handle( $sub, $do ) {
 			lif_portal_back( 'csoportok', 'Csoport mentve.', array( 'szerkeszt' => $id ) );
 
 		case 'delete_group':
+			$need_admin();
 			$g = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . lif_t( 'groups' ) . ' WHERE id = %d', (int) $p( 'id' ) ) );
 			if ( $g && lif_can_edit_group( $g ) ) {
 				$wpdb->delete( lif_t( 'groups' ), array( 'id' => $g->id ) );
