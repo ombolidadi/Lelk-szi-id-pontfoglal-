@@ -2,7 +2,7 @@
 Requires at least: 6.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 2.2.0
+Stable tag: 2.3.0
 License: MIT
 
 Időpontfoglalás több lelkésznek: csoportlinkek, meghívásos lelkészi regisztráció, kétfaktoros hitelesítés, foglalói fiók, Google Naptár.

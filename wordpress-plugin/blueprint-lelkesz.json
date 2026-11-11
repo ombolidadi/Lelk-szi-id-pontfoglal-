@@ -21,7 +21,7 @@
       "step": "installPlugin",
       "pluginData": {
         "resource": "url",
-        "url": "https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/lelkeszi-idopontfoglalo.zip?v=2.2.0"
+        "url": "https://raw.githubusercontent.com/ombolidadi/Lelk-szi-id-pontfoglal-/claude/nice-darwin-ld6omg/wordpress-plugin/lelkeszi-idopontfoglalo.zip?v=2.3.0"
       },
       "options": {
         "activate": true

@@ -274,34 +274,43 @@ function lif_pp_google() {
 }
 
 /* ---------- 4. Szolgáltatások ---------- */
+// Közös szolgáltatás: owner_id üres – az admin kezeli, bárki vállalhatja.
+// Saját szolgáltatás: owner_id = a lelkész – csak ő látja, módosítja, törli.
+// Közös szolgáltatás módosításakor a nem admin lelkész saját változatot kap, így a többiekét nem írja felül.
+
+function lif_service_can_edit( $s ) {
+	if ( ! $s ) {
+		return false;
+	}
+	return (int) $s->owner_id === get_current_user_id() || ( ! $s->owner_id && current_user_can( 'lif_admin' ) );
+}
 
 function lif_pp_services() {
 	global $wpdb;
-	if ( isset( $_GET['szerkeszt'] ) && current_user_can( 'lif_admin' ) ) {
+	if ( isset( $_GET['szerkeszt'] ) ) {
 		return lif_pp_service_edit( 'uj' === $_GET['szerkeszt'] ? 0 : (int) $_GET['szerkeszt'] );
 	}
 	$me       = get_current_user_id();
-	$services = $wpdb->get_results( 'SELECT * FROM ' . lif_t( 'services' ) . ' ORDER BY sort, name' );
+	$services = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . lif_t( 'services' ) . ' WHERE owner_id IS NULL OR owner_id = %d ORDER BY owner_id IS NULL DESC, sort, name', $me ) );
 	$mine     = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT service_id FROM ' . lif_t( 'pastor_services' ) . ' WHERE user_id = %d', $me ) ) );
-	echo '<div class="row-between"><p class="muted">Jelölje be, mely alkalmakra lehet Önhöz időpontot foglalni.</p>';
-	if ( current_user_can( 'lif_admin' ) ) {
-		echo '<a class="btn btn-primary" href="' . esc_url( lif_portal_url( 'szolgaltatasok', array( 'szerkeszt' => 'uj' ) ) ) . '">+ Új szolgáltatás</a>';
-	}
-	echo '</div>';
+	echo '<div class="row-between"><p class="muted" style="max-width:65ch">Jelölje be, mely alkalmakra lehet Önhöz időpontot foglalni. Saját alkalmat is felvehet; a közös alkalmakat módosítva saját változat készül, a többi lelkészé nem változik.</p>';
+	echo '<a class="btn btn-primary" href="' . esc_url( lif_portal_url( 'szolgaltatasok', array( 'szerkeszt' => 'uj' ) ) ) . '">+ Új alkalom</a></div>';
 	lif_pform( 'my_services' );
 	echo '<div class="grid">';
 	foreach ( $services as $s ) {
-		$names = array_filter( array_map( function ( $id ) {
-			$u = get_userdata( $id );
-			return $u ? $u->display_name : '';
-		}, lif_pastor_ids_for_service( $s->id ) ) );
+		$own = (int) $s->owner_id === $me;
 		echo '<div class="card service-card' . ( $s->active ? '' : ' inactive' ) . '" style="--accent:' . esc_attr( $s->color ) . '">';
+		echo '<span class="eyebrow">' . ( $own ? 'Saját' : 'Közös' ) . '</span>';
 		echo '<label class="check"><input type="checkbox" name="services[]" value="' . (int) $s->id . '" ' . checked( in_array( (int) $s->id, $mine, true ), true, false ) . '> <strong>' . esc_html( $s->name ) . '</strong></label>';
 		echo '<p class="meta">' . (int) $s->duration_min . ' perc' . ( $s->buffer_min ? ' + ' . (int) $s->buffer_min . ' perc szünet' : '' ) . ( $s->location ? ' · ' . esc_html( $s->location ) : '' ) . ( $s->active ? '' : ' · <em>inaktív</em>' ) . '</p>';
-		echo '<p class="meta">Lelkészek: ' . esc_html( $names ? implode( ', ', $names ) : '–' ) . '</p>';
-		if ( current_user_can( 'lif_admin' ) ) {
-			echo '<a href="' . esc_url( lif_portal_url( 'szolgaltatasok', array( 'szerkeszt' => $s->id ) ) ) . '">Szerkesztés</a>';
+		if ( ! $own ) {
+			$names = array_filter( array_map( function ( $id ) {
+				$u = get_userdata( $id );
+				return $u ? $u->display_name : '';
+			}, lif_pastor_ids_for_service( $s->id ) ) );
+			echo '<p class="meta">Vállalja: ' . esc_html( $names ? implode( ', ', $names ) : '–' ) . '</p>';
 		}
+		echo '<a href="' . esc_url( lif_portal_url( 'szolgaltatasok', array( 'szerkeszt' => $s->id ) ) ) . '">' . ( lif_service_can_edit( $s ) ? 'Szerkesztés' : 'Saját változat készítése' ) . '</a>';
 		echo '</div>';
 	}
 	echo '</div><button class="btn btn-primary">Mentés</button></form>';
@@ -309,13 +318,18 @@ function lif_pp_services() {
 
 function lif_pp_service_edit( $id ) {
 	global $wpdb;
-	$s = $id ? lif_service( $id ) : (object) array( 'id' => 0, 'name' => '', 'slug' => '', 'description' => '', 'duration_min' => 60, 'buffer_min' => 15, 'location' => '', 'color' => '#3d5a66', 'active' => 1, 'sort' => 0 );
-	if ( ! $s ) {
+	$me = get_current_user_id();
+	$s  = $id ? lif_service( $id ) : (object) array( 'id' => 0, 'owner_id' => $me, 'name' => '', 'slug' => '', 'description' => '', 'duration_min' => 60, 'buffer_min' => 15, 'location' => '', 'color' => '#2F557F', 'active' => 1, 'sort' => 0 );
+	if ( ! $s || ( $s->owner_id && (int) $s->owner_id !== $me ) ) {
 		echo '<p>Nincs ilyen szolgáltatás.</p>';
 		return;
 	}
-	$assigned = $id ? array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT user_id FROM ' . lif_t( 'pastor_services' ) . ' WHERE service_id = %d', $id ) ) ) : array();
-	echo '<p><a href="' . esc_url( lif_portal_url( 'szolgaltatasok' ) ) . '">← Szolgáltatások</a></p><h2>' . ( $id ? 'Szolgáltatás szerkesztése' : 'Új szolgáltatás' ) . '</h2>';
+	$copy   = $id && ! lif_service_can_edit( $s ); // közös alkalom nem adminnak: saját változat készül
+	$shared = $id && ! $s->owner_id && ! $copy;     // admin szerkeszti a közös alkalmat
+	echo '<p><a href="' . esc_url( lif_portal_url( 'szolgaltatasok' ) ) . '">← Szolgáltatások</a></p><h2>' . ( $copy ? 'Saját változat: ' . esc_html( $s->name ) : ( $id ? 'Alkalom szerkesztése' : 'Új alkalom' ) ) . '</h2>';
+	if ( $copy ) {
+		echo '<div class="alert alert-info">Ez közös alkalom. A mentéskor <strong>saját változat</strong> készül belőle, és Önnél ez váltja fel a közöset. A többi lelkész változatlanul a közöset látja.</div>';
+	}
 	lif_pform( 'save_service', 'class="card"' );
 	echo '<input type="hidden" name="id" value="' . (int) $s->id . '">';
 	echo '<label>Név *<input name="name" required value="' . esc_attr( $s->name ) . '"></label>';
@@ -323,18 +337,24 @@ function lif_pp_service_edit( $id ) {
 	echo '<label>Időtartam (perc)<input type="number" min="5" max="600" name="duration_min" value="' . (int) $s->duration_min . '"></label>';
 	echo '<label>Szünet előtte/utána (perc)<input type="number" min="0" max="240" name="buffer_min" value="' . (int) $s->buffer_min . '"></label>';
 	echo '<label>Helyszín<input name="location" value="' . esc_attr( $s->location ) . '" placeholder="pl. Lelkészi hivatal"></label>';
-	echo '<label>URL-azonosító<input name="slug" value="' . esc_attr( $s->slug ) . '" placeholder="automatikus"></label>';
 	echo '<label>Szín<input type="color" name="color" value="' . esc_attr( $s->color ) . '"></label>';
 	echo '<label>Sorrend<input type="number" name="sort" value="' . (int) $s->sort . '"></label></div>';
 	echo '<label class="check"><input type="checkbox" name="active" ' . checked( $s->active, 1, false ) . '> Aktív (foglalható)</label>';
-	echo '<h3>Lelkészek, akiknél foglalható</h3><div class="chips">';
-	foreach ( lif_pastors() as $p ) {
-		echo '<label class="check chip"><input type="checkbox" name="pastors[]" value="' . (int) $p->ID . '" ' . checked( in_array( $p->ID, $assigned, true ), true, false ) . '> ' . esc_html( $p->display_name ) . '</label>';
+	if ( ! $id && current_user_can( 'lif_admin' ) ) {
+		echo '<label class="check"><input type="checkbox" name="shared"> Közös alkalom – minden lelkész vállalhatja (különben csak az Öné)</label>';
 	}
-	echo '</div><div class="actions"><button class="btn btn-primary">Mentés</button></div></form>';
-	if ( $id ) {
-		lif_pform( 'delete_service', 'onsubmit="return confirm(\'Biztosan törli a szolgáltatást?\')"' );
-		echo '<input type="hidden" name="id" value="' . (int) $id . '"><button class="btn btn-danger">Szolgáltatás törlése</button></form>';
+	if ( $shared ) {
+		$assigned = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT user_id FROM ' . lif_t( 'pastor_services' ) . ' WHERE service_id = %d', $id ) ) );
+		echo '<h3>Lelkészek, akik vállalják</h3><p class="muted small">A lelkészek a saját Szolgáltatások oldalukon maguk is be- és kikapcsolhatják.</p><div class="chips">';
+		foreach ( lif_pastors() as $p ) {
+			echo '<label class="check chip"><input type="checkbox" name="pastors[]" value="' . (int) $p->ID . '" ' . checked( in_array( $p->ID, $assigned, true ), true, false ) . '> ' . esc_html( $p->display_name ) . '</label>';
+		}
+		echo '</div>';
+	}
+	echo '<div class="actions"><button class="btn btn-primary">' . ( $copy ? 'Saját változat mentése' : 'Mentés' ) . '</button></div></form>';
+	if ( $id && ! $copy ) {
+		lif_pform( 'delete_service', 'onsubmit="return confirm(\'Biztosan törli ezt az alkalmat?\')"' );
+		echo '<input type="hidden" name="id" value="' . (int) $id . '"><button class="btn btn-danger">Alkalom törlése</button></form>';
 	}
 }
 
@@ -682,22 +702,30 @@ function lif_portal_handle( $sub, $do ) {
 
 		case 'my_services':
 			$wpdb->delete( lif_t( 'pastor_services' ), array( 'user_id' => $me ) );
-			foreach ( $ids( 'services' ) as $sid ) {
+			$visible = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT id FROM ' . lif_t( 'services' ) . ' WHERE owner_id IS NULL OR owner_id = %d', $me ) ) );
+			foreach ( array_intersect( $ids( 'services' ), $visible ) as $sid ) {
 				$wpdb->replace( lif_t( 'pastor_services' ), array( 'user_id' => $me, 'service_id' => $sid ) );
 			}
 			lif_portal_back( 'szolgaltatasok', 'Az Ön által vállalt alkalmak mentve.' );
 
 		case 'save_service':
-			$need_admin();
-			$id   = (int) $p( 'id' );
+			$id       = (int) $p( 'id' );
+			$existing = $id ? lif_service( $id ) : null;
+			if ( $id && ( ! $existing || ( $existing->owner_id && (int) $existing->owner_id !== $me ) ) ) {
+				lif_portal_back( 'szolgaltatasok', 'Ezt az alkalmat nem módosíthatja.', array(), true );
+			}
+			$copy = $existing && ! lif_service_can_edit( $existing );
 			$back = array( 'szerkeszt' => $id ? $id : 'uj' );
 			$name = $p( 'name', 190 );
 			if ( '' === $name ) {
 				lif_portal_back( 'szolgaltatasok', 'A név kötelező.', $back, true );
 			}
-			$slug = lif_slugify( $p( 'slug' ) ? $p( 'slug' ) : $name );
-			if ( $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . lif_t( 'services' ) . ' WHERE slug = %s AND id != %d', $slug, $id ) ) ) {
-				lif_portal_back( 'szolgaltatasok', 'Ez az URL-azonosító már foglalt, válasszon másikat.', $back, true );
+			// Egyedi URL-azonosító (a lelkészek alkalmai azonos néven is létezhetnek)
+			$slug = ( $existing && ! $copy ) ? $existing->slug : lif_slugify( $name );
+			$slug = $slug ? $slug : 'alkalom';
+			$base = $slug;
+			while ( $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . lif_t( 'services' ) . ' WHERE slug = %s AND id != %d', $slug, $copy ? 0 : $id ) ) ) {
+				$slug = $base . '-' . lif_random_suffix();
 			}
 			$data = array(
 				'name'         => $name,
@@ -706,32 +734,44 @@ function lif_portal_handle( $sub, $do ) {
 				'duration_min' => max( 5, min( 600, (int) $p( 'duration_min' ) ) ),
 				'buffer_min'   => max( 0, min( 240, (int) $p( 'buffer_min' ) ) ),
 				'location'     => $p( 'location', 190 ),
-				'color'        => preg_match( '/^#[0-9a-f]{6}$/i', $p( 'color' ) ) ? $p( 'color' ) : '#3d5a66',
+				'color'        => preg_match( '/^#[0-9a-f]{6}$/i', $p( 'color' ) ) ? $p( 'color' ) : '#2F557F',
 				'active'       => empty( $_POST['active'] ) ? 0 : 1,
 				'sort'         => (int) $p( 'sort' ),
 			);
-			if ( $id ) {
+			if ( $existing && ! $copy ) {
 				$wpdb->update( lif_t( 'services' ), $data, array( 'id' => $id ) );
-			} else {
-				$wpdb->insert( lif_t( 'services' ), $data );
-				$id = (int) $wpdb->insert_id;
+				if ( ! $existing->owner_id ) { // admin: közös alkalom vállalói
+					$wpdb->delete( lif_t( 'pastor_services' ), array( 'service_id' => $id ) );
+					foreach ( $ids( 'pastors' ) as $uid ) {
+						$wpdb->replace( lif_t( 'pastor_services' ), array( 'user_id' => $uid, 'service_id' => $id ) );
+					}
+				}
+				lif_portal_back( 'szolgaltatasok', 'Alkalom mentve.' );
 			}
-			$wpdb->delete( lif_t( 'pastor_services' ), array( 'service_id' => $id ) );
-			foreach ( $ids( 'pastors' ) as $uid ) {
-				$wpdb->replace( lif_t( 'pastor_services' ), array( 'user_id' => $uid, 'service_id' => $id ) );
+			$shared            = ! $existing && current_user_can( 'lif_admin' ) && ! empty( $_POST['shared'] );
+			$data['owner_id']  = $shared ? null : $me;
+			$wpdb->insert( lif_t( 'services' ), $data );
+			$new_id = (int) $wpdb->insert_id;
+			$wpdb->replace( lif_t( 'pastor_services' ), array( 'user_id' => $me, 'service_id' => $new_id ) );
+			if ( $copy ) { // a saját változat váltja fel a közöset ennél a lelkésznél
+				$wpdb->delete( lif_t( 'pastor_services' ), array( 'user_id' => $me, 'service_id' => $id ) );
+				lif_portal_back( 'szolgaltatasok', 'Saját változat elkészült. Önnél ez váltja fel a közös alkalmat.' );
 			}
-			lif_portal_back( 'szolgaltatasok', 'Szolgáltatás mentve.' );
+			lif_portal_back( 'szolgaltatasok', 'Új alkalom felvéve.' );
 
 		case 'delete_service':
-			$need_admin();
 			$id = (int) $p( 'id' );
+			$s  = lif_service( $id );
+			if ( ! lif_service_can_edit( $s ) ) {
+				lif_portal_back( 'szolgaltatasok', 'Ezt az alkalmat nem törölheti. Ha nem szeretné vállalni, vegye ki mellőle a pipát.', array(), true );
+			}
 			if ( $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . lif_t( 'bookings' ) . ' WHERE service_id = %d LIMIT 1', $id ) ) ) {
 				$wpdb->update( lif_t( 'services' ), array( 'active' => 0 ), array( 'id' => $id ) );
-				lif_portal_back( 'szolgaltatasok', 'A szolgáltatáshoz tartoznak foglalások, ezért csak inaktiváltuk.' );
+				lif_portal_back( 'szolgaltatasok', 'Ehhez az alkalomhoz tartoznak foglalások, ezért csak inaktiváltuk (nem foglalható).' );
 			}
 			$wpdb->delete( lif_t( 'services' ), array( 'id' => $id ) );
 			$wpdb->delete( lif_t( 'pastor_services' ), array( 'service_id' => $id ) );
-			lif_portal_back( 'szolgaltatasok', 'Szolgáltatás törölve.' );
+			lif_portal_back( 'szolgaltatasok', 'Alkalom törölve.' );
 
 		case 'group_from_congregation': // megszűnt: a csoportbeosztás nem automatikus
 			lif_portal_back( 'csoportok', 'A csoportokat és a beosztást az adminisztrátor kézzel kezeli.', array(), true );

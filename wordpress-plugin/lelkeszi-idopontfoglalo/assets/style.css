@@ -1,48 +1,87 @@
+/*
+ * Adventista arculat (adventist.design) a weben:
+ * – Creation Grid: a jobb oldali „Sabbath column” sáv a fehér adventista szimbólummal (széles kijelzőn);
+ * – lapos színblokkok, szűk paletta (sötét tengerészkék + denim + mustár + fehér), árnyék és színátmenet nélkül;
+ * – betű: Advent Sans helyett a hivatalos tartalék, Noto Sans (a bővítménybe csomagolva, SIL OFL licenc).
+ */
+@font-face { font-family: "Noto Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url(fonts/noto-sans-latin-ext-400-normal.woff2) format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Noto Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url(fonts/noto-sans-latin-400-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Noto Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url(fonts/noto-sans-latin-ext-600-normal.woff2) format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Noto Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url(fonts/noto-sans-latin-600-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Noto Sans"; font-style: normal; font-weight: 900; font-display: swap; src: url(fonts/noto-sans-latin-ext-900-normal.woff2) format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Noto Sans"; font-style: normal; font-weight: 900; font-display: swap; src: url(fonts/noto-sans-latin-900-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
 [hidden] { display: none !important; }
 :root {
-  --bg: #f6f4ef;
-  --surface: #ffffff;
-  --text: #24282b;
-  --muted: #6b7075;
-  --border: #e2ddd3;
-  --primary: #3d5a66;
-  --primary-hover: #2f4852;
-  --primary-soft: #e6eef1;
-  --danger: #a23b3b;
-  --success-bg: #e8f3ea; --success-text: #2c5e36;
-  --error-bg: #f8e6e4; --error-text: #8a2f28;
-  --info-bg: #e8eef6; --info-text: #2e4a6b;
-  --radius: 10px;
+  /* Paletta – a hivatalos adventista színek (denim) és a gyülekezeti plakátminta (tengerészkék + mustár) */
+  --bg: #F3F5F8;
+  --surface: #FFFFFF;
+  --text: #16223A;
+  --muted: #5A6475;
+  --border: #D8DEE7;
+  --primary: #2F557F;        /* denim */
+  --primary-hover: #24456A;
+  --primary-soft: #E6EDF5;
+  --band: #1B2A4A;           /* sötét tengerészkék blokkok */
+  --band-deep: #0E1730;      /* Sabbath column */
+  --on-band: #FFFFFF;
+  --on-band-muted: #B9C3D6;
+  --accent: #F4B23E;         /* mustár kiemelés */
+  --on-accent: #1B2A4A;
+  --danger: #B3261E;
+  --success-bg: #E5F2EA; --success-text: #1F5E37;
+  --error-bg: #FBE8E6; --error-text: #8C1D18;
+  --info-bg: #E6EDF5; --info-text: #1F3D5E;
+  --radius: 4px;
+  --font: "Noto Sans", "Advent Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --sabbath: 0px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1b1d1f; --surface: #25282b; --text: #ece9e3; --muted: #a3a7ab; --border: #3a3e42;
-    --primary: #7fa6b5; --primary-hover: #97b9c6; --primary-soft: #2c3a40; --danger: #d77a72;
-    --success-bg: #22392a; --success-text: #a6d7b0; --error-bg: #432726; --error-text: #f1b3ac;
-    --info-bg: #23314a; --info-text: #b4cbea;
+    --bg: #0B1324; --surface: #131E33; --text: #EEF1F6; --muted: #A8B2C3; --border: #27375A;
+    --primary: #8DB0DA; --primary-hover: #A9C4E6; --primary-soft: #1B2B47;
+    --band: #0F1A31; --band-deep: #070C1A; --on-band-muted: #9AA7BE;
+    --danger: #F0A39C; --success-bg: #173324; --success-text: #A8D9B8; --error-bg: #3A1D1B; --error-text: #F4B4AE;
+    --info-bg: #1B2B47; --info-text: #C4D5EC;
     color-scheme: dark;
   }
 }
+@media (min-width: 900px) {
+  /* Creation Grid: a jobb oldali sáv a szélesség 1/7-e (weben felső korláttal) */
+  :root { --sabbath: clamp(64px, calc(100vw / 7), 132px); }
+}
 * { box-sizing: border-box; }
-body { margin: 0; font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+body { margin: 0; font: 16px/1.6 var(--font); background: var(--bg); color: var(--text); padding-right: var(--sabbath); -webkit-font-smoothing: antialiased; }
 a { color: var(--primary); }
-h1, h2, h3 { line-height: 1.25; font-family: Georgia, "Times New Roman", serif; font-weight: 600; }
-h1 { font-size: 1.8rem; margin: .5rem 0 1rem; }
-h2 { font-size: 1.3rem; margin: 2rem 0 .8rem; }
-h3 { font-size: 1.1rem; margin: 0 0 .4rem; }
-code { background: var(--primary-soft); padding: 1px 5px; border-radius: 4px; font-size: .9em; word-break: break-all; }
-.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
-main.wrap { padding-top: 1.2rem; padding-bottom: 3rem; min-height: 70vh; }
+h1, h2, h3 { line-height: 1.15; font-family: var(--font); font-weight: 900; letter-spacing: -0.02em; text-wrap: balance; }
+h1 { font-size: clamp(1.8rem, 1.2rem + 2vw, 2.6rem); margin: .4rem 0 1rem; }
+h2 { font-size: 1.35rem; margin: 2rem 0 .8rem; }
+h3 { font-size: 1.08rem; margin: 0 0 .4rem; letter-spacing: -0.01em; }
+code { background: var(--primary-soft); padding: 1px 5px; border-radius: 3px; font-size: .9em; word-break: break-all; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left, 0px)) 0 max(16px, env(safe-area-inset-right, 0px)); }
+main.wrap { padding-top: 1.6rem; padding-bottom: 3rem; min-height: 70vh; }
 .muted { color: var(--muted); }
 .center { text-align: center; }
 
-.topbar { background: var(--surface); border-bottom: 1px solid var(--border); }
-.topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 60px; flex-wrap: wrap; }
-.brand { font-family: Georgia, serif; font-size: 1.2rem; font-weight: 600; text-decoration: none; color: var(--text); }
-.brand-mark { color: var(--primary); }
+/* Sabbath column – a hivatalos fehér szimbólum a sáv tetején */
+.sabbath { display: none; }
+@media (min-width: 900px) {
+  .sabbath { display: flex; position: fixed; top: 0; right: 0; bottom: 0; width: var(--sabbath); background: var(--band-deep); justify-content: center; align-items: flex-start; padding-top: 22px; z-index: 20; }
+  .sabbath img { width: 58%; height: auto; }
+}
+
+/* Fejléc: lapos, sötét színblokk */
+.topbar { background: var(--band); color: var(--on-band); }
+.topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 64px; flex-wrap: wrap; }
+.brand { display: inline-flex; align-items: center; gap: .6rem; font-size: 1.05rem; font-weight: 900; letter-spacing: -0.01em; text-decoration: none; color: var(--on-band); }
+.brand-logo { width: 34px; height: 34px; flex: none; }
+@media (min-width: 900px) { .brand-logo { display: none; } }
 .topbar nav { display: flex; gap: 1rem; align-items: center; }
-.topbar nav a { text-decoration: none; }
+.topbar nav a { text-decoration: none; color: var(--on-band); font-weight: 600; }
+.topbar nav .muted { color: var(--on-band-muted); }
+.topbar .btn { background: transparent; color: var(--on-band); border-color: rgba(255,255,255,.45); }
+.topbar .btn:hover { border-color: var(--accent); }
 .subnav { background: var(--primary-soft); border-bottom: 1px solid var(--border); overflow-x: auto; }
 .subnav .wrap { display: flex; gap: .25rem; white-space: nowrap; }
 .subnav a { padding: .7rem .8rem; text-decoration: none; color: var(--text); border-bottom: 3px solid transparent; }
@@ -244,3 +283,44 @@ tr.cancelled td { opacity: .55; }
 .cal-dlg::backdrop { background: rgba(0,0,0,.35); }
 .cal-dlg h2 { margin: 0; }
 .cal-dlg .tabs { margin: .6rem 0 1rem; }
+
+/* ===== Adventista arculat – komponensek ===== */
+.eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: .74rem; font-weight: 600; color: var(--primary); margin: 0 0 .3rem; }
+.subnav { background: var(--primary); border-bottom: 0; }
+.subnav a { color: #fff; border-bottom: 3px solid transparent; font-weight: 600; }
+.subnav a.active { border-bottom-color: var(--accent); }
+.lif-portal .subnav { top: 0; }
+/* Fő színblokk (csoportoldal, belépés nélküli kezdőoldal) */
+.hero { background: var(--band); color: var(--on-band); padding: 1.8rem 1.6rem 2rem; margin: 0 0 1.6rem; }
+.hero .eyebrow { color: var(--accent); }
+.hero h1 { color: var(--on-band); margin: .2rem 0 .5rem; }
+.hero p { color: var(--on-band-muted); max-width: 60ch; margin: 0; }
+@media (max-width: 899px) { .hero { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; } }
+.card { border-radius: var(--radius); box-shadow: none; }
+a.service-card:hover { box-shadow: none; border-color: var(--primary); }
+.btn { border-radius: var(--radius); font-weight: 600; }
+.btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+@media (prefers-color-scheme: dark) { .btn-primary { color: #0B1324; } }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+input:not([type=checkbox]):not([type=radio]), select, textarea { border-radius: var(--radius); background: var(--surface); }
+.alert, .optional-login, .register-offer, .qr, .radio-card, .choice, .slot, .chip { border-radius: var(--radius); }
+.chip { border-radius: 999px; }
+.step-no { border-radius: 3px; background: var(--accent); color: var(--on-accent); font-family: var(--font); font-weight: 900; }
+.choice { border-width: 1px; }
+.choice[aria-pressed="true"] { border-color: var(--primary); background: var(--primary-soft); box-shadow: inset 4px 0 0 var(--accent); }
+.choice strong { font-weight: 900; letter-spacing: -0.01em; }
+.slot { border-color: var(--primary); font-weight: 600; }
+.slot.selected { background: var(--primary); color: #fff; }
+.summary .eyebrow { color: var(--primary); }
+.optional-login { background: var(--primary-soft); }
+.todo { border-left: 4px solid var(--accent); }
+table { border-radius: var(--radius); }
+th { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; }
+.cal-scroll, .cal-dlg { border-radius: var(--radius); }
+.cal-ev { border-radius: 3px; }
+.cal-dayhead.today span { color: var(--primary); }
+.cal-dayhead.today { box-shadow: inset 0 -3px 0 var(--accent); }
+/* Zárósáv */
+.footer { background: var(--band); color: var(--on-band-muted); border-top: 0; font-size: .85rem; }
+.footer a { color: var(--on-band); }
+.footer .tm { display: block; margin-top: .3rem; font-size: .78rem; opacity: .8; }

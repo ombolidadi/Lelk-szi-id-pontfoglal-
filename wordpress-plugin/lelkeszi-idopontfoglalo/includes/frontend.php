@@ -708,7 +708,7 @@ function lif_route_invite( $token ) {
 				for ( $d = 1; $d <= 5; $d++ ) {
 					$wpdb->insert( lif_t( 'availability' ), array( 'user_id' => $uid, 'weekday' => $d, 'start_time' => '09:00', 'end_time' => '16:00' ) );
 				}
-				foreach ( $wpdb->get_col( 'SELECT id FROM ' . lif_t( 'services' ) . ' WHERE active = 1' ) as $sid ) {
+				foreach ( $wpdb->get_col( 'SELECT id FROM ' . lif_t( 'services' ) . ' WHERE active = 1 AND owner_id IS NULL' ) as $sid ) { // csak a közös alkalmak
 					$wpdb->replace( lif_t( 'pastor_services' ), array( 'user_id' => $uid, 'service_id' => (int) $sid ) );
 				}
 				wp_set_auth_cookie( $uid, false, is_ssl() );

@@ -17,14 +17,15 @@ if ( $portal ) {
 	<link rel="stylesheet" href="<?php echo esc_url( LIF_URL . 'assets/style.css?v=' . LIF_VERSION ); ?>">
 </head>
 <body class="lif<?php echo $portal ? ' lif-portal' : ''; ?>">
+<aside class="sabbath"><img src="<?php echo esc_url( LIF_URL . 'assets/logo/adventist-symbol-tm--white.svg' ); ?>" alt="Hetednapi Adventista Egyház – szimbólum" width="76" height="76"></aside>
 <header class="topbar">
 	<div class="wrap topbar-inner">
 		<?php if ( $portal ) : ?>
-			<a class="brand" href="<?php echo esc_url( lif_portal_url() ); ?>"><span class="brand-mark" aria-hidden="true">✝</span> <?php echo esc_html( $lif_brand ); ?></a>
+			<a class="brand" href="<?php echo esc_url( lif_portal_url() ); ?>"><img class="brand-logo" src="<?php echo esc_url( LIF_URL . 'assets/logo/adventist-symbol-tm--white.svg' ); ?>" alt="" width="34" height="34"><?php echo esc_html( $lif_brand ); ?></a>
 		<?php elseif ( $group ) : ?>
-			<a class="brand" href="<?php echo esc_url( lif_group_url( $group ) ); ?>"><span class="brand-mark" aria-hidden="true">✝</span> <?php echo esc_html( $group->name ); ?></a>
+			<a class="brand" href="<?php echo esc_url( lif_group_url( $group ) ); ?>"><img class="brand-logo" src="<?php echo esc_url( LIF_URL . 'assets/logo/adventist-symbol-tm--white.svg' ); ?>" alt="" width="34" height="34"><?php echo esc_html( $group->name ); ?></a>
 		<?php else : ?>
-			<span class="brand"><span class="brand-mark" aria-hidden="true">✝</span> <?php echo esc_html( $lif_brand ); ?></span>
+			<span class="brand"><img class="brand-logo" src="<?php echo esc_url( LIF_URL . 'assets/logo/adventist-symbol-tm--white.svg' ); ?>" alt="" width="34" height="34"><?php echo esc_html( $lif_brand ); ?></span>
 		<?php endif; ?>
 		<nav>
 			<?php if ( $portal ) : ?>
@@ -64,7 +65,8 @@ if ( $portal ) {
 	<?php include LIF_DIR . 'templates/' . $template . '.php'; ?>
 </main>
 <footer class="footer">
-	<div class="wrap"><?php echo esc_html( $org ? $org : get_bloginfo( 'name' ) ); ?> · <a href="<?php echo esc_url( lif_url( '/adatkezeles' ) ); ?>">Adatkezelési tájékoztató</a></div>
+	<div class="wrap"><?php echo esc_html( $org ? $org : get_bloginfo( 'name' ) ); ?> · <a href="<?php echo esc_url( lif_url( '/adatkezeles' ) ); ?>">Adatkezelési tájékoztató</a>
+		<span class="tm">Az adventista szimbólum a Hetednapi Adventista Egyház Generálkonferenciájának védjegye.</span></div>
 </footer>
 <script src="<?php echo esc_url( LIF_URL . 'assets/front.js?v=' . LIF_VERSION ); ?>"></script>
 </body>

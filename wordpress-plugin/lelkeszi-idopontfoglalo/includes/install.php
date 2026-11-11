@@ -43,6 +43,7 @@ function lif_install_tables() {
   duration_min int(11) NOT NULL DEFAULT 60,
   buffer_min int(11) NOT NULL DEFAULT 0,
   location varchar(190) NOT NULL DEFAULT '',
+  owner_id bigint(20) unsigned NULL,
   color varchar(7) NOT NULL DEFAULT '#3d5a66',
   active tinyint(1) NOT NULL DEFAULT 1,
   sort int(11) NOT NULL DEFAULT 0,
@@ -187,6 +188,7 @@ function lif_install_roles() {
 
 function lif_activate() {
 	lif_install_tables();
+	lif_upgrade_columns();
 	lif_install_roles();
 	update_option( 'lif_db_version', LIF_DB_VERSION );
 	if ( ! get_option( 'lif_settings' ) ) {
@@ -201,9 +203,26 @@ function lif_deactivate() {
 	flush_rewrite_rules();
 }
 
+/** Hiányzó oszlop hozzáadása (a dbDelta nem minden adatbázison – pl. SQLite – teszi meg). */
+function lif_ensure_column( $table, $column, $definition ) {
+	global $wpdb;
+	// Név szerint keresünk: SQLite-on a „SHOW COLUMNS … LIKE” szűrés nem működik.
+	$names = array_map( function ( $r ) {
+		return isset( $r->Field ) ? $r->Field : ( isset( $r->name ) ? $r->name : '' );
+	}, (array) $wpdb->get_results( "SHOW COLUMNS FROM $table" ) );
+	if ( ! in_array( $column, $names, true ) ) {
+		$wpdb->query( "ALTER TABLE $table ADD COLUMN $column $definition" ); // phpcs:ignore
+	}
+}
+
+function lif_upgrade_columns() {
+	lif_ensure_column( lif_t( 'services' ), 'owner_id', 'bigint(20) unsigned NULL' );
+}
+
 function lif_maybe_upgrade() {
 	if ( (int) get_option( 'lif_db_version' ) < LIF_DB_VERSION ) {
 		lif_install_tables();
+		lif_upgrade_columns();
 		lif_install_roles();
 		update_option( 'lif_db_version', LIF_DB_VERSION );
 	}
