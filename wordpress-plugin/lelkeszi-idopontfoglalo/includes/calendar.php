@@ -1,6 +1,6 @@
 <?php
 /**
- * Naptárnézet a lelkészi felületen: heti naptár a foglalásokkal, szünetekkel, elérhetőséggel,
+ * Naptárnézet a lelkészi felületen: heti naptár a foglalásokkal, szünetekkel, foglalható idővel,
  * távollétekkel és a Google Naptár foglalt időszakaival. Üres helyre kattintva foglalás vagy szünet
  * vehető fel, meglévő bejegyzésre kattintva megnézhető és lemondható / törölhető.
  */
@@ -63,7 +63,7 @@ function lif_pp_calendar() {
 		return true;
 	} ) );
 
-	// Megjelenített órák: alapból 7–20, de igazodik az elérhetőséghez és a bejegyzésekhez
+	// Megjelenített órák: alapból 7–20, de igazodik a foglalható időhöz és a bejegyzésekhez
 	$h_from = 7;
 	$h_to   = 20;
 	foreach ( $windows as $ws ) {

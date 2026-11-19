@@ -1,6 +1,6 @@
 <?php
 /**
- * Szabad időpontok: heti elérhetőség − távollét − meglévő foglalások − Google Naptár foglaltság.
+ * Szabad időpontok: heti foglalható idő − távollét − meglévő foglalások − Google Naptár foglaltság.
  */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

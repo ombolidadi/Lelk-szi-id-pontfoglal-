@@ -327,3 +327,20 @@ th { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; }
 .account-head { align-items: center; }
 .account-head h1 { margin-bottom: .6rem; }
 .new-booking h3 { margin-bottom: .6rem; }
+/* Foglalható idő – napi kezdés/zárás/szünet */
+.schedule { display: flex; flex-direction: column; margin-bottom: 1rem; }
+.day-row { display: grid; grid-template-columns: 150px 1fr; gap: .4rem 1rem; align-items: center; padding: .7rem 0; border-bottom: 1px solid var(--border); }
+.day-row:last-child { border-bottom: 0; }
+.day-row label { margin: 0; }
+.day-on { align-items: center; }
+.day-on input { margin-top: 0; }
+.day-times { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: flex-end; }
+.day-times > label:not(.check), .brk-times label { display: flex; flex-direction: column; font-size: .82rem; color: var(--muted); font-weight: 600; }
+.day-times input[type=time] { width: 8.5rem !important; margin-top: .2rem; }
+.brk-times { display: inline-flex; gap: .5rem 1rem; flex-wrap: wrap; padding-left: .8rem; border-left: 3px solid var(--accent); }
+.day-brk { align-self: center; padding-bottom: .2rem; }
+.day-closed { display: none; }
+.day-row.is-off .day-times { display: none; }
+.day-row.is-off .day-closed { display: block; }
+.day-row.is-off strong { color: var(--muted); }
+@media (max-width: 640px) { .day-row { grid-template-columns: 1fr; } }

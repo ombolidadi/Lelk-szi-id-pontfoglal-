@@ -69,7 +69,7 @@ function lif_create_booking( $service, $pastor_ids, $start_ts, $client, $client_
 }
 
 /**
- * Lelkész által a naptárból felvett foglalás. A heti elérhetőségtől függetlenül bármikor felvehető,
+ * Lelkész által a naptárból felvett foglalás. A heti foglalható időtől függetlenül bármikor felvehető,
  * csak meglévő foglalással vagy szünettel nem ütközhet.
  */
 function lif_create_manual_booking( $service, $pastor_id, $start_ts, $client, $notify_client = true ) {

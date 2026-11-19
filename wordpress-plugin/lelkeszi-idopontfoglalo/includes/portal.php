@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 const LIF_PORTAL_PAGES = array(
 	''               => array( 'Foglalások', 'lif_pastor' ),
 	'naptar'         => array( 'Naptár', 'lif_pastor' ),
-	'elerhetoseg'    => array( 'Elérhetőség', 'lif_pastor' ),
+	'foglalhato-ido' => array( 'Foglalható idő', 'lif_pastor' ),
 	'google'         => array( 'Google naptár', 'lif_pastor' ),
 	'szolgaltatasok' => array( 'Szolgáltatások', 'lif_pastor' ),
 	'csoportok'      => array( 'Csoportok', 'lif_pastor' ),
@@ -38,7 +38,7 @@ function lif_pform( $do, $attrs = '' ) {
 	echo '<input type="hidden" name="do" value="' . esc_attr( $do ) . '">';
 }
 
-/** Mindenki – az admin is – csak a saját naptárát, foglalásait és elérhetőségét kezeli. */
+/** Mindenki – az admin is – csak a saját naptárát, foglalásait és foglalható idejét kezeli. */
 function lif_can_manage_pastor( $pastor_id ) {
 	return get_current_user_id() === (int) $pastor_id;
 }
@@ -73,6 +73,9 @@ function lif_route_portal( $sub ) {
 		}
 		lif_redirect( lif_portal_url( 'belepes' ) );
 	}
+	if ( 'elerhetoseg' === $sub ) { // régi cím
+		lif_redirect( lif_portal_url( 'foglalhato-ido' ) );
+	}
 	if ( ! array_key_exists( $sub, LIF_PORTAL_PAGES ) ) {
 		return lif_not_found();
 	}
@@ -86,7 +89,7 @@ function lif_route_portal( $sub ) {
 	$pages = array(
 		''               => 'lif_pp_bookings',
 		'naptar'         => 'lif_pp_calendar',
-		'elerhetoseg'    => 'lif_pp_availability',
+		'foglalhato-ido' => 'lif_pp_availability',
 		'google'         => 'lif_pp_google',
 		'szolgaltatasok' => 'lif_pp_services',
 		'csoportok'      => 'lif_pp_groups',
@@ -193,28 +196,61 @@ function lif_pp_bookings() {
 	echo '</tbody></table></div>';
 }
 
-/* ---------- 2. Elérhetőség ---------- */
+/* ---------- 2. Foglalható idő ---------- */
+// Naponként: foglalható-e, kezdő és záró időpont, opcionális szünet. Tárolás: egy vagy két időszak naponta.
+
+/** Egy nap tárolt időszakaiból a kezdés/zárás/szünet értékek. */
+function lif_day_schedule( $ranges ) {
+	if ( ! $ranges ) {
+		return array( 'on' => false, 'start' => '09:00', 'end' => '17:00', 'brk' => false, 'bs' => '12:00', 'be' => '13:00', 'extra' => false );
+	}
+	$first = $ranges[0];
+	$last  = $ranges[ count( $ranges ) - 1 ];
+	$two   = count( $ranges ) >= 2;
+	return array(
+		'on'    => true,
+		'start' => $first[0],
+		'end'   => '24:00' === $last[1] ? '23:59' : $last[1],
+		'brk'   => $two,
+		'bs'    => $two ? $first[1] : '12:00',
+		'be'    => $two ? $ranges[1][0] : '13:00',
+		'extra' => count( $ranges ) > 2,
+	);
+}
 
 function lif_pp_availability() {
 	global $wpdb;
-	$uid = get_current_user_id();
-	$who = get_userdata( $uid );
-	if ( get_current_user_id() !== $uid && $who ) {
-		echo '<p class="muted">Lelkész: <strong>' . esc_html( $who->display_name ) . '</strong></p>';
-	}
+	$uid  = get_current_user_id();
 	$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . lif_t( 'availability' ) . ' WHERE user_id = %d ORDER BY weekday, start_time', $uid ) );
-	echo '<p class="muted">Adja meg, mely időszakokban foglalhatók Önnél időpontok. Több időszakot vesszővel válasszon el, pl. <code>09:00-12:00, 14:00-17:30</code>. Üresen hagyott nap = nem foglalható. A Google naptárában lévő foglalt időszakokat a rendszer automatikusan kihagyja.</p>';
-	lif_pform( 'save_availability', 'class="card"' );
-	echo '<input type="hidden" name="pastor" value="' . (int) $uid . '"><div class="week-form">';
+	echo '<p class="muted" style="max-width:65ch">Állítsa be, mely napokon és milyen időben lehet Önhöz időpontot foglalni. A Google naptárában lévő foglalt időszakokat és a naptárban rögzített szüneteket a rendszer automatikusan kihagyja.</p>';
+	lif_pform( 'save_availability', 'class="card" id="schedule-form"' );
+	echo '<input type="hidden" name="pastor" value="' . (int) $uid . '"><div class="schedule">';
+	$extra = false;
 	foreach ( LIF_WEEKDAYS as $d => $label ) {
-		$val = implode( ', ', array_map( function ( $r ) {
-			return $r->start_time . '-' . $r->end_time;
-		}, array_filter( $rows, function ( $r ) use ( $d ) {
-			return (int) $r->weekday === $d;
-		} ) ) );
-		echo '<label><span>' . esc_html( $label ) . '</span><input name="day' . $d . '" value="' . esc_attr( $val ) . '" placeholder="pl. 09:00-12:00, 14:00-17:00"></label>';
+		$ranges = array();
+		foreach ( $rows as $r ) {
+			if ( (int) $r->weekday === $d ) {
+				$ranges[] = array( $r->start_time, $r->end_time );
+			}
+		}
+		$x     = lif_day_schedule( $ranges );
+		$extra = $extra || $x['extra'];
+		echo '<div class="day-row' . ( $x['on'] ? '' : ' is-off' ) . '" data-day="' . $d . '">';
+		echo '<label class="check day-on"><input type="checkbox" name="on[' . $d . ']" ' . checked( $x['on'], true, false ) . '> <strong>' . esc_html( $label ) . '</strong></label>';
+		echo '<div class="day-times">';
+		echo '<label>Kezdés<input type="time" name="start[' . $d . ']" value="' . esc_attr( $x['start'] ) . '" step="300"></label>';
+		echo '<label>Zárás<input type="time" name="end[' . $d . ']" value="' . esc_attr( $x['end'] ) . '" step="300"></label>';
+		echo '<label class="check day-brk"><input type="checkbox" name="brk[' . $d . ']" ' . checked( $x['brk'], true, false ) . '> Szünet</label>';
+		echo '<span class="brk-times"' . ( $x['brk'] ? '' : ' hidden' ) . '><label>Szünet kezdete<input type="time" name="bs[' . $d . ']" value="' . esc_attr( $x['bs'] ) . '" step="300"></label>';
+		echo '<label>Szünet vége<input type="time" name="be[' . $d . ']" value="' . esc_attr( $x['be'] ) . '" step="300"></label></span>';
+		echo '</div><span class="day-closed muted small">Nem foglalható</span></div>';
 	}
-	echo '</div><button class="btn btn-primary">Mentés</button></form>';
+	echo '</div>';
+	if ( $extra ) {
+		echo '<p class="alert alert-info">Valamelyik napon korábban több szünet volt megadva. Mentéskor napi egy szünet marad meg; a többi alkalmi szünetet a Naptárban rögzítheti.</p>';
+	}
+	echo '<div class="actions"><button class="btn btn-primary">Mentés</button><button type="button" class="btn btn-ghost" id="copy-monday">Hétfő beállításának másolása keddtől péntekig</button></div></form>';
+	echo '<script src="' . esc_url( LIF_URL . 'assets/schedule.js?v=' . LIF_VERSION ) . '"></script>';
 
 	echo '<h2>Távollétek, szabadság</h2>';
 	lif_pform( 'add_timeoff', 'class="card form-grid"' );
@@ -612,16 +648,34 @@ function lif_portal_handle( $sub, $do ) {
 		case 'save_availability':
 			$uid = (int) $p( 'pastor' );
 			if ( ! lif_can_manage_pastor( $uid ) ) {
-				lif_portal_back( 'elerhetoseg', 'Nincs jogosultsága.', array(), true );
+				lif_portal_back( 'foglalhato-ido', 'Nincs jogosultsága.', array(), true );
 			}
-			$args   = $uid !== $me ? array( 'lelkesz' => $uid ) : array();
+			$get    = function ( $key, $d ) {
+				$v = isset( $_POST[ $key ][ $d ] ) ? sanitize_text_field( wp_unslash( $_POST[ $key ][ $d ] ) ) : '';
+				return preg_match( '/^([01]\d|2[0-3]):[0-5]\d$/', $v ) ? $v : '';
+			};
 			$parsed = array();
 			for ( $d = 1; $d <= 7; $d++ ) {
-				$r = lif_parse_ranges( $p( 'day' . $d ) );
-				if ( is_wp_error( $r ) ) {
-					lif_portal_back( 'elerhetoseg', $r->get_error_message(), $args, true );
+				$parsed[ $d ] = array();
+				if ( empty( $_POST['on'][ $d ] ) ) {
+					continue;
 				}
-				$parsed[ $d ] = $r;
+				$day   = LIF_WEEKDAYS[ $d ];
+				$start = $get( 'start', $d );
+				$end   = $get( 'end', $d );
+				if ( ! $start || ! $end || $start >= $end ) {
+					lif_portal_back( 'foglalhato-ido', "$day: a zárás legyen későbbi a kezdésnél.", array(), true );
+				}
+				if ( ! empty( $_POST['brk'][ $d ] ) ) {
+					$bs = $get( 'bs', $d );
+					$be = $get( 'be', $d );
+					if ( ! $bs || ! $be || $bs >= $be || $bs <= $start || $be >= $end ) {
+						lif_portal_back( 'foglalhato-ido', "$day: a szünet a kezdés és a zárás közé essen, és a vége legyen későbbi a kezdeténél.", array(), true );
+					}
+					$parsed[ $d ] = array( array( $start, $bs ), array( $be, $end ) );
+				} else {
+					$parsed[ $d ] = array( array( $start, $end ) );
+				}
 			}
 			$wpdb->delete( lif_t( 'availability' ), array( 'user_id' => $uid ) );
 			foreach ( $parsed as $d => $ranges ) {
@@ -629,7 +683,7 @@ function lif_portal_handle( $sub, $do ) {
 					$wpdb->insert( lif_t( 'availability' ), array( 'user_id' => $uid, 'weekday' => $d, 'start_time' => $r[0], 'end_time' => $r[1] ) );
 				}
 			}
-			lif_portal_back( 'elerhetoseg', 'Heti elérhetőség mentve.', $args );
+			lif_portal_back( 'foglalhato-ido', 'Foglalható idő mentve.' );
 
 		case 'add_timeoff':
 			$uid  = (int) $p( 'pastor' );
@@ -637,20 +691,20 @@ function lif_portal_handle( $sub, $do ) {
 			$from = $p( 'start_date', 10 );
 			$to   = $p( 'end_date', 10 ) ? $p( 'end_date', 10 ) : $from;
 			if ( ! lif_can_manage_pastor( $uid ) ) {
-				lif_portal_back( 'elerhetoseg', 'Nincs jogosultsága.', array(), true );
+				lif_portal_back( 'foglalhato-ido', 'Nincs jogosultsága.', array(), true );
 			}
 			if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) || $to < $from ) {
-				lif_portal_back( 'elerhetoseg', 'Adjon meg érvényes dátumokat (a vége nem lehet korábbi a kezdeténél).', $args, true );
+				lif_portal_back( 'foglalhato-ido', 'Adjon meg érvényes dátumokat (a vége nem lehet korábbi a kezdeténél).', $args, true );
 			}
 			$wpdb->insert( lif_t( 'timeoff' ), array( 'user_id' => $uid, 'start_date' => $from, 'end_date' => $to, 'note' => $p( 'note', 190 ) ) );
-			lif_portal_back( 'elerhetoseg', 'Távollét rögzítve.', $args );
+			lif_portal_back( 'foglalhato-ido', 'Távollét rögzítve.', $args );
 
 		case 'delete_timeoff':
 			$t = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . lif_t( 'timeoff' ) . ' WHERE id = %d', (int) $p( 'id' ) ) );
 			if ( $t && lif_can_manage_pastor( $t->user_id ) ) {
 				$wpdb->delete( lif_t( 'timeoff' ), array( 'id' => $t->id ) );
 			}
-			lif_portal_back( 'elerhetoseg', 'Távollét törölve.', $t && (int) $t->user_id !== $me ? array( 'lelkesz' => $t->user_id ) : array() );
+			lif_portal_back( 'foglalhato-ido', 'Távollét törölve.', $t && (int) $t->user_id !== $me ? array( 'lelkesz' => $t->user_id ) : array() );
 
 		case 'google_connect':
 			if ( ! lif_google_configured() ) {
