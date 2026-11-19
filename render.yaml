@@ -1,0 +1,26 @@
+# Render.com Blueprint – „New → Blueprint” menüben ezt a repót kiválasztva automatikusan létrejön.
+services:
+  - type: web
+    name: lelkeszi-idopontfoglalo
+    runtime: node
+    plan: starter            # tartós lemezhez legalább Starter csomag kell
+    buildCommand: npm ci --omit=dev
+    startCommand: node src/server.js
+    healthCheckPath: /robots.txt
+    disk:
+      name: adatok
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_FILE
+        value: /data/app.db
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: BASE_URL
+        sync: false          # pl. https://lelkeszi-idopontfoglalo.onrender.com
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false

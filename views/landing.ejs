@@ -1,0 +1,14 @@
+<%- include('partials/header') %>
+<section class="card narrow center">
+  <h1>Időpontfoglalás</h1>
+  <p>Időpontot a gyülekezetétől vagy lelkészétől kapott <strong>foglalási linken</strong> keresztül kérhet.</p>
+  <p class="muted">Ha már foglalt, és fiókot is létrehozott, itt láthatja a foglalásait.</p>
+  <p>
+    <% if (currentClient) { %>
+      <a class="btn btn-primary" href="/fiok">Foglalásaim</a>
+    <% } else { %>
+      <a class="btn" href="/fiok/belepes">Belépés a foglalásaimhoz</a>
+    <% } %>
+  </p>
+</section>
+<%- include('partials/footer') %>

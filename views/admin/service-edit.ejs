@@ -1,0 +1,34 @@
+<%- include('../partials/header') %>
+<p><a href="/admin/services">← Szolgáltatások</a></p>
+<h1><%= title %></h1>
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+<form method="post" action="/admin/services/<%= service.id || 'new' %>" class="card">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label>Név *<input name="name" required value="<%= service.name || '' %>"></label>
+  <label>Leírás<textarea name="description" rows="3"><%= service.description || '' %></textarea></label>
+  <div class="form-grid">
+    <label>Időtartam (perc)<input type="number" name="duration_min" min="5" max="600" value="<%= service.duration_min %>"></label>
+    <label>Szünet előtte/utána (perc)<input type="number" name="buffer_min" min="0" max="240" value="<%= service.buffer_min %>"></label>
+    <label>Helyszín<input name="location" value="<%= service.location || '' %>" placeholder="pl. Lelkészi hivatal"></label>
+    <label>URL-azonosító<input name="slug" value="<%= service.slug || '' %>" placeholder="automatikus"></label>
+    <label>Szín<input type="color" name="color" value="<%= service.color || '#4f6d7a' %>"></label>
+    <label>Sorrend<input type="number" name="sort" value="<%= service.sort || 0 %>"></label>
+  </div>
+  <label class="check"><input type="checkbox" name="active" <%= service.active ? 'checked' : '' %>> Aktív (foglalható)</label>
+  <h3>Lelkészek, akiknél foglalható</h3>
+  <div class="chips">
+    <% pastors.forEach(function (p) { %>
+      <label class="check chip"><input type="checkbox" name="pastors" value="<%= p.id %>" <%= assigned.has(p.id) ? 'checked' : '' %>> <%= p.name %></label>
+    <% }) %>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary">Mentés</button>
+  </div>
+</form>
+<% if (service.id) { %>
+<form method="post" action="/admin/services/<%= service.id %>/delete" onsubmit="return confirm('Biztosan törli a szolgáltatást?')">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <button class="btn btn-danger">Szolgáltatás törlése</button>
+</form>
+<% } %>
+<%- include('../partials/footer') %>

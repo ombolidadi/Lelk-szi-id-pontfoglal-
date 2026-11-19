@@ -1,0 +1,52 @@
+<%- include('../partials/header') %>
+<h1>Google naptárak</h1>
+
+<% if (!configured) { %>
+  <div class="alert alert-error">
+    A Google integráció még nincs beállítva a szerveren. Az adminisztrátornak meg kell adnia a
+    <code>GOOGLE_CLIENT_ID</code> és <code>GOOGLE_CLIENT_SECRET</code> környezeti változókat
+    (lásd README). Engedélyezett átirányítási URI: <code><%= redirectUri %></code>
+  </div>
+<% } else { %>
+  <p class="muted">Csatlakoztassa egy vagy több saját Google fiókját (pl. személyes és gyülekezeti).
+    Jelölje be, mely naptárak foglalt időszakait vegye figyelembe a rendszer, és válassza ki,
+    melyik naptárba kerüljenek az új foglalások.</p>
+  <p><a class="btn btn-primary" href="/admin/google/connect">+ Google fiók csatlakoztatása</a></p>
+<% } %>
+
+<% if (accounts.length) { %>
+<form method="post" action="/admin/google/calendars" id="cal-form">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <% accounts.forEach(function (a) { %>
+    <section class="card">
+      <div class="row-between">
+        <h3><%= a.email %></h3>
+        <div class="actions">
+          <button class="btn btn-small btn-ghost" formaction="/admin/google/<%= a.id %>/refresh">Lista frissítése</button>
+          <button class="btn btn-small btn-danger" formaction="/admin/google/<%= a.id %>/delete" onclick="return confirm('Leválasztja ezt a Google fiókot?')">Leválasztás</button>
+        </div>
+      </div>
+      <% if (a.last_error) { %><div class="alert alert-error">Utolsó hiba: <%= a.last_error %> – szükség esetén csatlakoztassa újra a fiókot.</div><% } %>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Naptár</th><th>Ütközés figyelése</th><th>Foglalások ide</th></tr></thead>
+        <tbody>
+        <% a.calendars.forEach(function (c) { %>
+          <tr>
+            <td><%= c.summary %><% if (c.is_primary) { %> <small class="muted">(elsődleges)</small><% } %></td>
+            <td><input type="checkbox" name="busy" value="<%= c.id %>" <%= c.check_busy ? 'checked' : '' %> aria-label="Ütközés figyelése"></td>
+            <td><% if (c.can_write) { %><input type="radio" name="target" value="<%= c.id %>" <%= (me.target_account_id === a.id && me.target_calendar_id === c.calendar_id) ? 'checked' : '' %> aria-label="Célnaptár"><% } else { %><small class="muted">csak olvasható</small><% } %></td>
+          </tr>
+        <% }) %>
+        </tbody>
+      </table>
+      </div>
+    </section>
+  <% }) %>
+  <label class="check"><input type="radio" name="target" value="none" <%= !me.target_calendar_id ? 'checked' : '' %>> Ne kerüljenek a foglalások Google naptárba</label>
+  <button class="btn btn-primary">Mentés</button>
+</form>
+<% } else if (configured) { %>
+  <p class="muted">Még nincs csatlakoztatott Google fiók.</p>
+<% } %>
+<%- include('../partials/footer') %>

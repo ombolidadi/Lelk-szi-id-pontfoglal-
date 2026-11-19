@@ -1,0 +1,927 @@
+<title>Lelkészi Időpontfoglaló</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/3.4.4/luxon.min.js"></script>
+<style>
+/* Elrendezés: keskeny, egyoszlopos foglalási folyamat; a lelkészi felület fülekkel, kártyák csak ott, ahol önálló tárgyat jelölnek. */
+:root {
+  --bg: #f4f6f7;
+  --surface: #ffffff;
+  --ink: #1d272c;
+  --muted: #5d6b72;
+  --line: #d9e0e3;
+  --accent: #2c5d73;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2edf2;
+  --ok-bg: #e5f2ea; --ok: #24603a;
+  --err-bg: #f8e5e3; --err: #8f2d25;
+  --warn-bg: #fbf1dc; --warn: #7a5410;
+  --font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151b1e; --surface: #1e262a; --ink: #e6ecee; --muted: #9aa9b0; --line: #33414a;
+    --accent: #84bdd4; --accent-ink: #0d1a20; --accent-soft: #233841;
+    --ok-bg: #1f3428; --ok: #9fd6b0; --err-bg: #3d2422; --err: #f0aaa2; --warn-bg: #3a301b; --warn: #ecc77c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151b1e; --surface: #1e262a; --ink: #e6ecee; --muted: #9aa9b0; --line: #33414a;
+  --accent: #84bdd4; --accent-ink: #0d1a20; --accent-soft: #233841;
+  --ok-bg: #1f3428; --ok: #9fd6b0; --err-bg: #3d2422; --err: #f0aaa2; --warn-bg: #3a301b; --warn: #ecc77c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font-body); }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.9rem; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.08rem; }
+p { margin: 0; }
+a { color: var(--accent); }
+.wrap { max-width: 1000px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.muted { color: var(--muted); }
+.small { font-size: .88rem; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.between { justify-content: space-between; }
+
+header.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-block: 12px; }
+.brand { font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; display: flex; gap: 8px; align-items: center; }
+.brand .mark { color: var(--accent); }
+nav.tabsTop { display: flex; gap: 4px; flex-wrap: wrap; }
+nav.tabsTop button { background: none; border: 0; padding: 6px 10px; border-radius: 8px; font: inherit; color: var(--muted); cursor: pointer; }
+nav.tabsTop button[aria-current="true"] { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+main { padding-block: 22px 48px; }
+
+.hero { display: flex; flex-direction: column; gap: 6px; margin-bottom: 22px; max-width: 65ch; }
+.eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .74rem; font-weight: 600; color: var(--accent); }
+.section-title { margin: 26px 0 12px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; min-width: 0; }
+.svc { display: flex; flex-direction: column; gap: 6px; text-align: left; font: inherit; color: inherit; cursor: pointer; border-left: 4px solid var(--c, var(--accent)); }
+.svc:hover { border-color: var(--accent); border-left-color: var(--c, var(--accent)); }
+.svc .meta, .meta { color: var(--muted); font-size: .88rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; gap: 6px; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); font-size: .85rem; border: 0; color: var(--ink); font-family: inherit; }
+button.chip { cursor: pointer; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-weight: 500; cursor: pointer; text-decoration: none; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.danger { color: var(--err); border-color: currentColor; background: transparent; }
+.btn.ghost { background: transparent; }
+.btn.sm { padding: 4px 10px; font-size: .86rem; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+label.f { display: flex; flex-direction: column; gap: 4px; font-weight: 500; font-size: .92rem; min-width: 0; }
+input:not([type=checkbox]):not([type=radio]), select, textarea {
+  width: 100%; padding: 8px 10px; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+}
+input[type=color] { padding: 2px; height: 38px; }
+label.check { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; }
+label.check input { margin-top: 4px; }
+.fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+
+.notice { padding: 10px 14px; border-radius: 8px; font-size: .92rem; }
+.notice.ok { background: var(--ok-bg); color: var(--ok); }
+.notice.err { background: var(--err-bg); color: var(--err); }
+.notice.warn { background: var(--warn-bg); color: var(--warn); }
+.notice.info { background: var(--accent-soft); color: var(--ink); }
+
+.pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.pick label { display: flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; background: var(--surface); }
+.pick label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.pick small { display: block; color: var(--muted); font-size: .8rem; }
+
+.weeknav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.weeknav strong { text-align: center; font-variant-numeric: tabular-nums; }
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.day { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.dayhead { text-align: center; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.dayhead b { display: block; font-size: .82rem; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dayhead span { color: var(--muted); font-size: .8rem; }
+.slot { border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 6px; padding: 6px 0; font: inherit; font-size: .9rem; cursor: pointer; font-variant-numeric: tabular-nums; }
+.slot:hover { background: var(--accent-soft); }
+.slot[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.none { text-align: center; color: var(--muted); }
+@media (max-width: 720px) {
+  .days { grid-template-columns: 1fr; }
+  .day { flex-direction: row; flex-wrap: wrap; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .dayhead { width: 100%; text-align: left; border: 0; padding: 0; display: flex; gap: 8px; align-items: baseline; }
+  .day.empty { display: none; }
+  .slot { padding: 6px 12px; }
+}
+
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+.subtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 18px; overflow-x: auto; }
+.subtabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; font: inherit; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.subtabs button[aria-current="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: .92rem; }
+th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; }
+tr:last-child td { border-bottom: 0; }
+tr.off td { opacity: .55; }
+td.num, .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .78rem; font-weight: 600; }
+.pill.ok { background: var(--ok-bg); color: var(--ok); }
+.pill.off { background: var(--err-bg); color: var(--err); }
+.pill.cal { background: var(--accent-soft); color: var(--accent); }
+
+.list { display: flex; flex-direction: column; gap: 10px; }
+.item { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.item > div:first-child { min-width: 0; flex: 1 1 260px; }
+.share { display: flex; gap: 6px; }
+.share input { font-size: .85rem; min-width: 0; flex: 1; }
+.week-form { display: grid; gap: 8px; }
+.week-form label { display: grid; grid-template-columns: 100px 1fr; gap: 8px; align-items: center; font-weight: 500; }
+@media (max-width: 520px) { .week-form label { grid-template-columns: 1fr; gap: 2px; } }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 20; max-width: min(92vw, 520px); box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+.empty-state { padding: 26px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--r); }
+@media (prefers-reduced-motion: no-preference) { .slot, .btn, .svc { transition: background-color .12s, border-color .12s; } }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><span class="mark" aria-hidden="true">✝</span><span id="orgName">Lelkészi időpontfoglaló</span></div>
+    <nav class="tabsTop" id="topnav" aria-label="Fő menü"></nav>
+  </div>
+</header>
+<main class="wrap" id="app">
+  <div class="stack">
+    <h1>Időpontfoglalás</h1>
+    <p class="muted">A szolgáltatások és a lelkészek betöltése folyamatban…</p>
+  </div>
+</main>
+<div id="toast" class="toast notice" hidden></div>
+
+<script>
+(() => {
+  const L = luxon;
+  const TZ = 'Europe/Budapest';
+  const GC = 'Google Calendar';
+  const KINDS = { gyulekezet: 'Gyülekezet', munkacsoport: 'Munkacsoport', egyeb: 'Egyéb csoport' };
+  const WD = ['', 'Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 'Vasárnap'];
+  const DEFAULT_CONFIG = { orgName: 'Gyülekezet', intro: 'Foglaljon időpontot lelkészeinkhez beszélgetésre, lelkigondozásra vagy egyéb alkalomra.', minNoticeHours: 12, maxDaysAhead: 60, stepMin: 30, inviteClient: true, shareBase: '' };
+
+  // ---------- állapot ----------
+  const S = {
+    db: null, user: null, me: { id: null, canEdit: false, canWrite: null },
+    config: { ...DEFAULT_CONFIG }, services: [], pastors: [], groups: [], taken: [], allBookings: [], myDoc: null,
+    loaded: { config: false, services: false, pastors: false, groups: false }, slowNote: false, noDb: false,
+    route: { name: 'home', group: null },
+    flow: null,          // { serviceId, pastor, weekStart, slot, form, error, busy }
+    done: null,          // { uid, bid }
+    admin: { tab: 'bookings', edit: null, filterPastor: 'all', past: false, cal: { list: null, loading: false, syncing: false, log: [] } },
+    confirmKey: null,
+  };
+
+  const $app = document.getElementById('app');
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const rid = (p) => p + '-' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+  const slugify = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50);
+  const dt = (ms) => L.DateTime.fromMillis(ms, { zone: TZ }).setLocale('hu');
+  const fmt = (ms, f = 'yyyy. LLL d. HH:mm') => dt(ms).toFormat(f);
+  const range = (b) => `${fmt(b.start, 'yyyy. LLLL d. (cccc) HH:mm')}–${fmt(b.end, 'HH:mm')}`;
+  const today = () => L.DateTime.now().setZone(TZ).toISODate();
+  const cfg = () => ({ ...DEFAULT_CONFIG, ...S.config });
+  const pastorById = (id) => S.pastors.find((p) => p.id === id);
+  const serviceById = (id) => S.services.find((s) => s.id === id);
+  const activePastors = () => S.pastors.filter((p) => p.active !== false);
+  const myPastor = () => (S.me.id ? S.pastors.find((p) => p.userId === S.me.id) : null);
+  const clean = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+
+  let toastTimer;
+  function toast(text, type = 'ok') {
+    const t = document.getElementById('toast');
+    t.className = `toast notice ${type}`; t.textContent = text; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 4200);
+  }
+  function dbErr(e) {
+    if (e && e.code === 'invalid_argument') return 'Ehhez a művelethez nincs jogosultsága ezen az oldalon.';
+    if (e && e.code === 'quota_exceeded') return 'Megtelt az adattár. Töröljön régi foglalásokat, majd próbálja újra.';
+    return 'A mentés nem sikerült. Ellenőrizze a kapcsolatot, és próbálja újra.';
+  }
+
+  // ---------- útvonal (hash) ----------
+  function readRoute() {
+    const h = decodeURIComponent((location.hash || '').slice(1));
+    if (h.startsWith('csoport-')) S.route = { name: 'home', group: h.slice(8) };
+    else if (h === 'foglalasaim') S.route = { name: 'mine', group: null };
+    else if (h === 'lelkeszi') S.route = { name: 'admin', group: null };
+    else S.route = { name: 'home', group: null };
+    S.flow = null; S.done = null;
+  }
+  function go(hash) { if (location.hash.slice(1) === hash) { readRoute(); render(); } else location.hash = hash; }
+  window.addEventListener('hashchange', () => { readRoute(); render(); window.scrollTo(0, 0); });
+
+  const currentGroup = () => S.route.group ? S.groups.find((g) => g.slug === S.route.group && g.active !== false) : null;
+  function visiblePastors() {
+    const g = currentGroup();
+    const all = activePastors();
+    return g ? all.filter((p) => (g.memberIds || []).includes(p.id)) : all;
+  }
+  function pastorsFor(svc) {
+    const ids = new Set(svc.pastorIds || []);
+    return visiblePastors().filter((p) => ids.has(p.id));
+  }
+
+  // ---------- időpont-számítás ----------
+  function parseRanges(text) {
+    const out = [];
+    for (const part of String(text || '').split(/[,;\n]+/)) {
+      const p = part.trim(); if (!p) continue;
+      const m = p.match(/^(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?$/);
+      if (!m) throw new Error(`Érvénytelen időszak: „${p}” (helyes: 09:00-12:00)`);
+      const s = `${m[1].padStart(2, '0')}:${m[2] || '00'}`, e = `${m[3].padStart(2, '0')}:${m[4] || '00'}`;
+      if (s >= e || e > '24:00') throw new Error(`Érvénytelen időszak: „${p}”`);
+      out.push([s, e]);
+    }
+    return out;
+  }
+  function busyFor(pid) {
+    const p = pastorById(pid) || {};
+    const list = S.taken.filter((t) => t.pastorId === pid).map((t) => [t.start, t.end]);
+    for (const b of p.busy || []) list.push(b);
+    return list;
+  }
+  function slotsFor(svc, pastorIds, fromISO, days) {
+    const c = cfg();
+    const earliest = Date.now() + (Number(c.minNoticeHours) || 0) * 3600e3;
+    const lastDay = L.DateTime.now().setZone(TZ).plus({ days: Number(c.maxDaysAhead) || 60 }).toISODate();
+    const step = Math.max(5, Number(c.stepMin) || svc.durationMin) * 60e3;
+    const dur = (Number(svc.durationMin) || 60) * 60e3;
+    const pad = (Number(svc.bufferMin) || 0) * 60e3;
+    const out = [];
+    for (let i = 0; i < days; i++) {
+      const d = L.DateTime.fromISO(fromISO, { zone: TZ }).plus({ days: i }).setLocale('hu');
+      const date = d.toISODate();
+      const map = new Map();
+      if (date <= lastDay) {
+        for (const pid of pastorIds) {
+          const p = pastorById(pid); if (!p) continue;
+          if ((p.timeOff || []).some((t) => date >= t.from && date <= (t.to || t.from))) continue;
+          const busy = busyFor(pid);
+          for (const [ws, we] of (p.availability || {})[d.weekday] || []) {
+            const a = L.DateTime.fromISO(`${date}T${ws}`, { zone: TZ }).toMillis();
+            const z = L.DateTime.fromISO(`${date}T${we}`, { zone: TZ }).toMillis();
+            for (let s = a; s + dur <= z; s += step) {
+              if (s < earliest) continue;
+              const e = s + dur;
+              if (busy.some(([bs, be]) => s < be + pad && e + pad > bs)) continue;
+              if (!map.has(s)) map.set(s, []);
+              map.get(s).push(pid);
+            }
+          }
+        }
+      }
+      out.push({ date, weekday: d.toFormat('cccc'), label: d.toFormat('LLL d.'), slots: [...map.entries()].sort((x, y) => x[0] - y[0]).map(([start, pastors]) => ({ start, end: start + dur, pastors })) });
+    }
+    return out;
+  }
+
+  // ---------- adatbetöltés ----------
+  async function boot() {
+    readRoute();
+    render();
+    const slowTimer = setTimeout(() => { S.slowNote = true; render(); }, 10000);
+    const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+    S.db = db; S.user = user;
+    if (user) {
+      const [id, canEdit, canWrite] = await Promise.all([user.id(), user.canEdit(), user.can('data.write')]);
+      S.me = { id, canEdit, canWrite };
+    }
+    if (!db) { clearTimeout(slowTimer); S.noDb = true; render(); return; }
+    const done = (k) => { S.loaded[k] = true; if (Object.values(S.loaded).every(Boolean)) { clearTimeout(slowTimer); S.slowNote = false; } render(); };
+    const fail = () => { clearTimeout(slowTimer); S.slowNote = true; render(); };
+    db.doc('config/main').onSnapshot((s) => { S.config = s.exists ? s.data() : {}; if (!s.metadata.fromCache) done('config'); else render(); }, fail);
+    const coll = (name, key) => db.collection(name).onSnapshot((q) => {
+      S[key] = q.docs.map((d) => ({ id: d.id, ...d.data() }));
+      if (key === 'services') S.services.sort((a, b) => (a.sort || 0) - (b.sort || 0) || String(a.name).localeCompare(b.name, 'hu'));
+      if (key === 'pastors' || key === 'groups') S[key].sort((a, b) => String(a.name).localeCompare(b.name, 'hu'));
+      if (!q.metadata.fromCache && key in S.loaded) done(key); else render();
+    }, fail);
+    coll('services', 'services'); coll('pastors', 'pastors'); coll('groups', 'groups'); coll('taken', 'taken');
+    if (S.me.canEdit) {
+      db.collection('bookings').onSnapshot((q) => {
+        const all = [];
+        for (const d of q.docs) for (const [bid, b] of Object.entries(d.data().items || {})) all.push({ ...b, id: bid, uid: d.id });
+        S.allBookings = all.sort((a, b) => a.start - b.start);
+        render();
+      }, () => {});
+    }
+    if (S.me.id) db.doc('bookings/' + S.me.id).onSnapshot((s) => { S.myDoc = s.exists ? s.data() : null; render(); }, () => {});
+  }
+
+  // ---------- foglalás ----------
+  async function claimSlot(pid, start, end, ref) {
+    const doc = S.db.collection('taken').doc(`${pid}_${start}`);
+    const lease = await doc.acquire({ holder: S.me.id || rid('h'), ttlMs: 8000 });
+    if (!lease.acquired) return false;
+    const snap = await doc.get();
+    if (snap.exists && snap.data().pastorId) return false;
+    await doc.set({ pastorId: pid, start, end, ref });
+    return true;
+  }
+  async function writeOwnBooking(uid, bid, booking) {
+    const ref = S.db.doc('bookings/' + uid);
+    const s = await ref.get();
+    if (s.exists) await ref.update({ items: { [bid]: booking } });
+    else await ref.set({ items: { [bid]: booking } });
+  }
+  async function submitBooking() {
+    const f = S.flow; const svc = serviceById(f.serviceId);
+    const v = f.form;
+    const fail = (msg) => { f.error = msg; f.busy = false; render(); };
+    if (!S.me.id) return fail('A foglaláshoz be kell jelentkeznie a claude.ai-ra.');
+    if (!f.slot) return fail('Kérjük, válasszon időpontot.');
+    if (!v.name.trim()) return fail('Kérjük, adja meg a nevét.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email.trim())) return fail('Kérjük, adjon meg érvényes e-mail címet.');
+    if (!v.consent) return fail('A foglaláshoz fogadja el az adatkezelési tájékoztatót.');
+    f.busy = true; f.error = null; render();
+    const start = f.slot.start, end = f.slot.end;
+    const pad = (Number(svc.bufferMin) || 0) * 60e3;
+    let cands = f.pastor === 'any' ? [...f.slot.pastors] : [f.pastor];
+    const load = (pid) => S.taken.filter((t) => t.pastorId === pid && t.start > Date.now()).length;
+    cands.sort((a, b) => load(a) - load(b));
+    const bid = rid('b');
+    let pid = null;
+    try {
+      for (const c of cands) {
+        if (busyFor(c).some(([bs, be]) => start < be + pad && end + pad > bs)) continue;
+        if (await claimSlot(c, start, end, `${S.me.id}/${bid}`)) { pid = c; break; }
+      }
+    } catch (e) { return fail(dbErr(e)); }
+    if (!pid) return fail('Ez az időpont időközben betelt. Kérjük, válasszon másikat.');
+    const booking = {
+      serviceId: svc.id, pastorId: pid, start, end,
+      clientName: v.name.trim().slice(0, 120), email: v.email.trim().slice(0, 200), phone: v.phone.trim().slice(0, 40), note: v.note.trim().slice(0, 2000),
+      status: 'confirmed', createdAt: Date.now(), groupSlug: currentGroup()?.slug || '',
+    };
+    try {
+      await writeOwnBooking(S.me.id, bid, booking);
+    } catch (e) {
+      await S.db.doc(`taken/${pid}_${start}`).delete().catch(() => {});
+      return fail(dbErr(e));
+    }
+    S.done = { uid: S.me.id, bid, booking: { ...booking, id: bid } };
+    S.flow = null; render(); window.scrollTo(0, 0);
+  }
+  async function cancelBooking(uid, bid, b) {
+    try {
+      await S.db.doc('bookings/' + uid).update({ items: { [bid]: { status: 'cancelled', cancelledAt: Date.now(), gcalDeletePending: Boolean(b.gcalEventId) } } });
+      await S.db.doc(`taken/${b.pastorId}_${b.start}`).delete().catch(() => {});
+      toast('A foglalást lemondtuk.', 'info');
+      const mp = myPastor();
+      if (b.gcalEventId && mp && mp.id === b.pastorId) syncGoogle({ quiet: true });
+    } catch (e) { toast(dbErr(e), 'err'); }
+  }
+
+  // ---------- Google Naptár (a lelkész saját kapcsolatán keresztül) ----------
+  async function gcal(tool, input) {
+    const mcp = await claude.use('mcp');
+    if (!mcp) throw { code: 'unavailable', message: 'A Google Naptár ezen a nézeten nem érhető el.' };
+    const r = await mcp.callTool(GC, tool, input);
+    return r.payload || {};
+  }
+  function gcalMsg(e) {
+    const c = e && e.code;
+    if (c === 'server_not_connected' || c === 'server_not_found') return 'Nincs Google Naptár-kapcsolat. Adja hozzá a claude.ai Beállítások → Connectors menüben, majd próbálja újra.';
+    if (c === 'needs_reauth') return 'A Google Naptár-kapcsolat lejárt. Kapcsolja újra a claude.ai Beállítások → Connectors menüben.';
+    if (c === 'not_in_manifest' || c === 'approval_required' || c === 'consent_required') return 'Az oldal nem kapott engedélyt a Google Naptár használatára. Engedélyezze, amikor a claude.ai rákérdez, vagy az oldal Engedélyek menüjében.';
+    if (c === 'blocked_by_policy') return 'A szervezete házirendje tiltja ezt a Google Naptár-műveletet.';
+    if (c === 'selection_required') return 'Több Google Naptár-kapcsolata van: válassza ki, melyiket használja az oldal.';
+    if (c === 'server_unavailable') return 'A Google Naptár most nem válaszol. Próbálja újra egy perc múlva.';
+    if (c === 'unavailable') return e.message;
+    return 'A Google Naptár-művelet nem sikerült' + (e && e.message ? `: ${e.message}` : '.');
+  }
+  const localISO = (ms) => dt(ms).toFormat("yyyy-LL-dd'T'HH:mm:ss");
+  async function loadCalendars() {
+    const c = S.admin.cal; c.loading = true; c.error = null; render();
+    try {
+      const all = []; let token;
+      do {
+        const p = await gcal('list_calendars', clean({ pageSize: 250, pageToken: token }));
+        all.push(...(p.calendars || []));
+        token = p.nextPageToken;
+      } while (token && all.length < 500);
+      c.list = all.map((x) => ({ id: x.id, summary: x.summary || x.id }));
+    } catch (e) { c.error = gcalMsg(e); }
+    c.loading = false; render();
+  }
+  function mergeIntervals(list) {
+    const s = list.filter(([a, b]) => b > a).sort((x, y) => x[0] - y[0]);
+    const out = [];
+    for (const [a, b] of s) { const last = out[out.length - 1]; if (last && a <= last[1]) last[1] = Math.max(last[1], b); else out.push([a, b]); }
+    return out;
+  }
+  async function syncGoogle({ quiet = false } = {}) {
+    const p = myPastor(); if (!p) return;
+    const c = S.admin.cal; if (c.syncing) return;
+    c.syncing = true; c.error = null; c.log = []; render();
+    const g = { busyCalendars: ['primary'], target: 'primary', allDayBusy: false, ...(p.gcal || {}) };
+    const conf = cfg();
+    const mine = S.allBookings.filter((b) => b.pastorId === p.id);
+    const ourIds = new Set(S.allBookings.map((b) => b.gcalEventId).filter(Boolean));
+    try {
+      // 1. Foglalt időszakok beolvasása a kiválasztott naptárakból
+      const from = Date.now(), to = L.DateTime.now().setZone(TZ).plus({ days: (Number(conf.maxDaysAhead) || 60) + 1 }).toMillis();
+      const busy = [];
+      for (const cal of g.busyCalendars) {
+        let token, pages = 0;
+        do {
+          const res = await gcal('list_events', clean({ calendarId: cal === 'primary' ? undefined : cal, startTime: localISO(from), endTime: localISO(to), timeZone: TZ, pageSize: 250, pageToken: token, orderBy: 'startTime' }));
+          for (const ev of res.events || []) {
+            if (ev.status === 'cancelled' || ev.transparency === 'transparent' || ourIds.has(ev.id)) continue;
+            if (ev.start && ev.start.dateTime) busy.push([Date.parse(ev.start.dateTime), Date.parse(ev.end.dateTime)]);
+            else if (g.allDayBusy && ev.start && ev.start.date) busy.push([L.DateTime.fromISO(ev.start.date, { zone: TZ }).toMillis(), L.DateTime.fromISO(ev.end.date, { zone: TZ }).toMillis()]);
+          }
+          token = res.nextPageToken; pages++;
+        } while (token && pages < 10);
+      }
+      const merged = mergeIntervals(busy);
+      await S.db.doc('pastors/' + p.id).update({ busy: merged, busySyncedAt: Date.now() });
+      c.log.push(`${merged.length} foglalt időszak beolvasva ${g.busyCalendars.length} naptárból.`);
+      // 2. Új foglalások beírása, lemondottak törlése a célnaptárban
+      let created = 0, removed = 0;
+      for (const b of mine) {
+        if (b.status === 'confirmed' && !b.gcalEventId && b.end > Date.now()) {
+          const svc = serviceById(b.serviceId) || { name: 'Foglalás' };
+          const invite = conf.inviteClient !== false;
+          const res = await gcal('create_event', clean({
+            calendarId: g.target === 'primary' ? undefined : g.target,
+            summary: `${svc.name} – ${b.clientName}`,
+            description: [`Szolgáltatás: ${svc.name}`, `Név: ${b.clientName}`, `E-mail: ${b.email}`, b.phone ? `Telefon: ${b.phone}` : '', b.note ? `\nMegjegyzés:\n${b.note}` : ''].filter(Boolean).join('\n'),
+            location: svc.location || undefined,
+            startTime: localISO(b.start), endTime: localISO(b.end), timeZone: TZ,
+            attendees: invite ? [{ email: b.email, displayName: b.clientName }] : undefined,
+            notificationLevel: invite ? 'ALL' : 'NONE',
+          }));
+          const evId = res.id || (res.event && res.event.id) || 'ismeretlen';
+          await S.db.doc('bookings/' + b.uid).update({ items: { [b.id]: { gcalEventId: evId, gcalCalendarId: g.target } } });
+          created++;
+        } else if (b.status === 'cancelled' && b.gcalDeletePending && b.gcalEventId) {
+          if (b.gcalEventId !== 'ismeretlen') {
+            try {
+              await gcal('delete_event', clean({ calendarId: b.gcalCalendarId === 'primary' ? undefined : b.gcalCalendarId, eventId: b.gcalEventId, notificationLevel: conf.inviteClient !== false ? 'ALL' : 'NONE' }));
+            } catch (e) { if (e.code !== 'tool_error') throw e; }
+          }
+          await S.db.doc('bookings/' + b.uid).update({ items: { [b.id]: { gcalDeletePending: false } } });
+          removed++;
+        }
+      }
+      c.log.push(`${created} új foglalás került a naptárba, ${removed} lemondott foglalás törölve.`);
+      if (!quiet) toast('Szinkronizálás kész.');
+    } catch (e) {
+      c.error = e && e.code && !['invalid_argument', 'quota_exceeded'].includes(e.code) ? gcalMsg(e) : dbErr(e);
+      if (quiet) toast(c.error, 'err');
+    }
+    c.syncing = false; render();
+  }
+
+  // ---------- megjelenítés ----------
+  function renderNav() {
+    document.getElementById('orgName').textContent = cfg().orgName || 'Gyülekezet';
+    const items = [['home', 'Foglalás', currentGroup() ? 'csoport-' + currentGroup().slug : ''], ['mine', 'Foglalásaim', 'foglalasaim']];
+    if (S.me.canEdit) items.push(['admin', 'Lelkészi felület', 'lelkeszi']);
+    document.getElementById('topnav').innerHTML = items.map(([n, l, h]) =>
+      `<button data-act="nav" data-hash="${esc(h)}" aria-current="${S.route.name === n}">${l}</button>`).join('');
+  }
+
+  function render() {
+    // Fókusz és kurzor megőrzése újrarajzoláskor
+    const a = document.activeElement;
+    const focus = a && a.id ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
+    renderNav();
+    let html;
+    if (S.noDb) html = `<div class="stack"><h1>Időpontfoglalás</h1><div class="notice warn">A foglaláshoz jelentkezzen be a claude.ai-ra, majd nyissa meg újra ezt az oldalt.</div></div>`;
+    else if (S.route.name === 'mine') html = viewMine();
+    else if (S.route.name === 'admin') html = S.me.canEdit ? viewAdmin() : `<div class="notice warn">A lelkészi felülethez szerkesztői hozzáférés szükséges.</div>`;
+    else if (S.done) html = viewDone();
+    else if (S.flow) html = viewBook();
+    else html = viewHome();
+    if (S.slowNote) html = `<div class="notice warn" style="margin-bottom:14px">Az adatok még nem érhetők el, vagy elavultak lehetnek. Ellenőrizze a kapcsolatot.</div>` + html;
+    $app.innerHTML = html;
+    if (focus) {
+      const el = document.getElementById(focus.id);
+      if (el) { el.focus(); try { if (focus.s != null) el.setSelectionRange(focus.s, focus.e); } catch (_) {} }
+    }
+  }
+
+  function viewHome() {
+    const g = currentGroup();
+    if (S.route.group && S.loaded.groups && !g) return `<div class="stack"><h1>A csoport nem található</h1><p class="muted">Ez a csoportlink nem létezik, vagy már nem aktív.</p><div><button class="btn" data-act="nav" data-hash="">Minden szolgáltatás</button></div></div>`;
+    const c = cfg();
+    const pas = visiblePastors();
+    const pIds = new Set(pas.map((p) => p.id));
+    const svcs = S.services.filter((s) => s.active !== false && (s.pastorIds || []).some((id) => pIds.has(id)));
+    const loading = !S.loaded.services || !S.loaded.pastors;
+    let h = `<section class="hero">${g ? `<span class="eyebrow">${esc(KINDS[g.kind] || 'Csoport')}</span><h1>${esc(g.name)}</h1><p class="muted">${esc(g.description || 'Foglaljon időpontot a csoport lelkészeihez.')}</p>` : `<h1>Időpontfoglalás</h1><p class="muted">${esc(c.intro)}</p>`}</section>`;
+    h += `<h2 class="section-title">Válasszon szolgáltatást</h2>`;
+    if (loading) h += `<div class="empty-state">Szolgáltatások betöltése…</div>`;
+    else if (!svcs.length) h += `<div class="empty-state">Jelenleg nincs foglalható szolgáltatás.${S.me.canEdit ? ' A Lelkészi felületen vehet fel lelkészeket és szolgáltatásokat.' : ''}</div>`;
+    else h += `<div class="grid">${svcs.map((s) => `<button class="card svc" style="--c:${esc(s.color || '')}" data-act="book" data-id="${esc(s.id)}">
+        <h3>${esc(s.name)}</h3>${s.description ? `<p>${esc(s.description)}</p>` : ''}
+        <span class="meta">${esc(s.durationMin)} perc${s.location ? ' · ' + esc(s.location) : ''}</span></button>`).join('')}</div>`;
+    if (!loading && pas.length) {
+      h += `<h2 class="section-title">${g ? 'A csoport lelkészei' : 'Lelkészeink'}</h2><div class="grid">`;
+      for (const p of pas) {
+        const ps = svcs.filter((s) => (s.pastorIds || []).includes(p.id));
+        h += `<div class="card stack" style="gap:8px"><div><h3>${esc(p.name)}</h3>${p.title || p.congregation ? `<p class="meta">${esc([p.title, p.congregation].filter(Boolean).join(' · '))}</p>` : ''}</div>
+          ${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
+          <div class="chips">${ps.map((s) => `<button class="chip" data-act="book" data-id="${esc(s.id)}" data-pastor="${esc(p.id)}">${esc(s.name)}</button>`).join('')}</div></div>`;
+      }
+      h += `</div>`;
+    }
+    return h;
+  }
+
+  function viewBook() {
+    const f = S.flow; const svc = serviceById(f.serviceId);
+    if (!svc) return `<div class="notice err">Ez a szolgáltatás már nem elérhető.</div>`;
+    const pas = pastorsFor(svc);
+    const g = currentGroup();
+    if (f.pastor !== 'any' && !pas.some((p) => p.id === f.pastor)) f.pastor = pas.length === 1 ? pas[0].id : 'any';
+    const ids = f.pastor === 'any' ? pas.map((p) => p.id) : [f.pastor];
+    const days = slotsFor(svc, ids, f.weekStart, 7);
+    const any = days.some((d) => d.slots.length);
+    if (f.slot && !days.some((d) => d.slots.some((s) => s.start === f.slot.start && (f.pastor === 'any' || s.pastors.includes(f.pastor))))) {
+      const stillThere = slotsFor(svc, ids, L.DateTime.fromMillis(f.slot.start, { zone: TZ }).toISODate(), 1)[0].slots.find((s) => s.start === f.slot.start);
+      f.slot = stillThere || null;
+    }
+    const maxDay = L.DateTime.now().setZone(TZ).plus({ days: Number(cfg().maxDaysAhead) || 60 }).toISODate();
+    const v = f.form;
+    let h = `<div class="stack" style="gap:18px">
+      <div><button class="btn ghost sm" data-act="back">← ${g ? esc(g.name) : 'Minden szolgáltatás'}</button></div>
+      <section class="card stack" style="gap:6px;border-left:4px solid ${esc(svc.color || 'var(--accent)')}">
+        <h1>${esc(svc.name)}</h1>${svc.description ? `<p>${esc(svc.description)}</p>` : ''}
+        <p class="meta">${esc(svc.durationMin)} perc${svc.location ? ' · ' + esc(svc.location) : ''}</p>
+      </section>`;
+    if (!pas.length) return h + `<div class="empty-state">Ehhez a szolgáltatáshoz jelenleg nincs elérhető lelkész.</div></div>`;
+    h += `<section class="card stack"><h2>Lelkész</h2><div class="pick" role="radiogroup">`;
+    if (pas.length > 1) h += `<label><input type="radio" name="pastor" value="any" ${f.pastor === 'any' ? 'checked' : ''} data-act="pastor"><span>Bármelyik lelkész${g ? `<small>${esc(g.name)}</small>` : ''}</span></label>`;
+    for (const p of pas) h += `<label><input type="radio" name="pastor" value="${esc(p.id)}" ${f.pastor === p.id ? 'checked' : ''} data-act="pastor"><span>${esc(p.name)}${p.title || p.congregation ? `<small>${esc([p.title, p.congregation].filter(Boolean).join(' · '))}</small>` : ''}</span></label>`;
+    h += `</div></section>`;
+    h += `<section class="card stack"><h2>Időpont</h2>
+      <div class="weeknav"><button class="btn ghost sm" data-act="week" data-d="-7" ${f.weekStart <= today() ? 'disabled' : ''}>‹ Előző hét</button>
+      <strong>${esc(days[0].label)} – ${esc(days[6].label)}</strong>
+      <button class="btn ghost sm" data-act="week" data-d="7" ${days[6].date >= maxDay ? 'disabled' : ''}>Következő hét ›</button></div>
+      <div class="days">${days.map((d) => `<div class="day ${d.slots.length ? '' : 'empty'}"><div class="dayhead"><b>${esc(d.weekday)}</b><span>${esc(d.label)}</span></div>
+        ${d.slots.length ? d.slots.map((s) => `<button class="slot" data-act="slot" data-start="${s.start}" aria-pressed="${f.slot && f.slot.start === s.start}">${fmt(s.start, 'HH:mm')}</button>`).join('') : '<div class="none">–</div>'}</div>`).join('')}</div>
+      ${any ? '' : '<p class="muted">Ezen a héten nincs szabad időpont. Lapozzon a következő hétre.</p>'}
+      ${f.slot ? `<p><b>Kiválasztva:</b> ${esc(fmt(f.slot.start, 'cccc, LLLL d. HH:mm'))}–${esc(fmt(f.slot.end, 'HH:mm'))}</p>` : ''}
+    </section>`;
+    h += `<form class="card stack" data-form="booking" novalidate><h2>Adatai</h2>
+      <div class="fgrid">
+        <label class="f">Név *<input id="bf-name" data-bind="name" value="${esc(v.name)}" autocomplete="name" maxlength="120"></label>
+        <label class="f">E-mail *<input id="bf-email" data-bind="email" type="email" value="${esc(v.email)}" autocomplete="email" maxlength="200"></label>
+        <label class="f">Telefon<input id="bf-phone" data-bind="phone" type="tel" value="${esc(v.phone)}" autocomplete="tel" maxlength="40"></label>
+      </div>
+      <label class="f">Megjegyzés (nem kötelező)<textarea id="bf-note" data-bind="note" rows="3" maxlength="2000" placeholder="Miben segíthetünk?">${esc(v.note)}</textarea></label>
+      <label class="check"><input id="bf-consent" type="checkbox" data-bind="consent" ${v.consent ? 'checked' : ''}> <span>Hozzájárulok, hogy adataimat a gyülekezet az időpont egyeztetésére használja. A választott lelkész látja őket, és bekerülhetnek a naptárába.</span></label>
+      ${f.error ? `<div class="notice err">${esc(f.error)}</div>` : ''}
+      ${S.me.canWrite === false ? `<div class="notice warn">Ezen a linken csak böngészni tud. A foglaláshoz az oldal tulajdonosának szerkesztőként kell meghívnia.</div>` : ''}
+      <div><button class="btn primary" type="submit" ${f.busy || !f.slot || S.me.canWrite === false ? 'disabled' : ''}>${f.busy ? 'Foglalás folyamatban…' : 'Időpont lefoglalása'}</button></div>
+    </form></div>`;
+    return h;
+  }
+
+  function bookingDetails(b) {
+    const svc = serviceById(b.serviceId) || {}; const p = pastorById(b.pastorId) || {};
+    return `<dl class="kv"><dt>Szolgáltatás</dt><dd>${esc(svc.name || '–')}</dd>
+      <dt>Lelkész</dt><dd>${esc(p.name || '–')}${p.congregation ? ` <span class="muted">(${esc(p.congregation)})</span>` : ''}</dd>
+      <dt>Időpont</dt><dd class="num">${esc(range(b))}</dd>
+      ${svc.location ? `<dt>Helyszín</dt><dd>${esc(svc.location)}</dd>` : ''}
+      <dt>Név</dt><dd>${esc(b.clientName)}</dd><dt>E-mail</dt><dd>${esc(b.email)}</dd></dl>`;
+  }
+
+  function viewDone() {
+    const b = S.done.booking;
+    return `<section class="card stack" style="max-width:620px;margin:0 auto">
+      <span class="eyebrow">Foglalás rögzítve</span><h1>Köszönjük, várjuk szeretettel!</h1>
+      ${bookingDetails(b)}
+      <p class="muted small">Foglalását a „Foglalásaim” menüben bármikor megtekintheti vagy lemondhatja. A lelkész a következő naptár-szinkronizáláskor kapja meg a naptárába${cfg().inviteClient !== false ? ', Ön pedig ekkor Google Naptár-meghívót kap e-mailben' : ''}.</p>
+      <div class="row"><button class="btn primary" data-act="nav" data-hash="foglalasaim">Foglalásaim</button><button class="btn" data-act="back">Újabb foglalás</button></div>
+    </section>`;
+  }
+
+  function viewMine() {
+    if (!S.me.id) return `<div class="notice warn">A foglalásai megtekintéséhez jelentkezzen be a claude.ai-ra.</div>`;
+    const items = Object.entries((S.myDoc && S.myDoc.items) || {}).map(([id, b]) => ({ ...b, id })).sort((a, b) => b.start - a.start);
+    const up = items.filter((b) => b.end > Date.now());
+    const past = items.filter((b) => b.end <= Date.now());
+    const row = (b) => {
+      const k = `c-${b.id}`;
+      const can = b.status === 'confirmed' && b.start > Date.now();
+      return `<div class="card item"><div class="stack" style="gap:8px"><div class="row">${b.status === 'confirmed' ? '<span class="pill ok">Visszaigazolt</span>' : '<span class="pill off">Lemondva</span>'}</div>${bookingDetails(b)}</div>
+        ${can ? (S.confirmKey === k ? `<div class="row"><button class="btn danger sm" data-act="cancelMine" data-id="${esc(b.id)}">Igen, lemondom</button><button class="btn sm" data-act="unconfirm">Mégse</button></div>` : `<button class="btn danger sm" data-act="confirm" data-key="${k}">Lemondás</button>`) : ''}</div>`;
+    };
+    return `<div class="stack"><h1>Foglalásaim</h1>
+      ${items.length ? '' : '<div class="empty-state">Még nincs foglalása. A „Foglalás” menüben választhat időpontot.</div>'}
+      ${up.length ? `<h2 class="section-title">Közelgő</h2><div class="list">${up.map(row).join('')}</div>` : ''}
+      ${past.length ? `<h2 class="section-title">Korábbi</h2><div class="list">${past.map(row).join('')}</div>` : ''}</div>`;
+  }
+
+  // ---------- lelkészi felület ----------
+  function viewAdmin() {
+    const tabs = [['bookings', 'Foglalások'], ['google', 'Google naptár'], ['pastors', 'Lelkészek'], ['services', 'Szolgáltatások'], ['groups', 'Csoportok'], ['settings', 'Beállítások']];
+    const t = S.admin.tab;
+    let h = `<div class="row between" style="margin-bottom:14px"><h1>Lelkészi felület</h1>${myPastor() ? `<span class="chip">Bejelentkezve: ${esc(myPastor().name)}</span>` : ''}</div>`;
+    h += `<div class="subtabs" role="tablist">${tabs.map(([k, l]) => `<button data-act="tab" data-tab="${k}" aria-current="${t === k}">${l}</button>`).join('')}</div>`;
+    if (S.admin.edit) return h + viewEditor();
+    return h + ({ bookings: adminBookings, google: adminGoogle, pastors: adminPastors, services: adminServices, groups: adminGroups, settings: adminSettings }[t])();
+  }
+
+  function adminBookings() {
+    const a = S.admin; const now = Date.now();
+    let list = S.allBookings.filter((b) => (a.past ? b.end <= now : b.end > now));
+    if (a.filterPastor !== 'all') list = list.filter((b) => b.pastorId === a.filterPastor);
+    if (a.past) list = [...list].reverse();
+    let h = `<div class="row between" style="margin-bottom:12px">
+      <div class="row"><button class="btn sm ${a.past ? 'ghost' : 'primary'}" data-act="past" data-v="0">Közelgő</button><button class="btn sm ${a.past ? 'primary' : 'ghost'}" data-act="past" data-v="1">Korábbi</button></div>
+      <label class="f" style="flex-direction:row;align-items:center;gap:8px">Lelkész <select id="fp" data-act="filterPastor"><option value="all">Mindenki</option>${S.pastors.map((p) => `<option value="${esc(p.id)}" ${a.filterPastor === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label></div>`;
+    if (!list.length) return h + `<div class="empty-state">Nincs megjeleníthető foglalás.</div>`;
+    h += `<div class="tablewrap"><table><thead><tr><th>Időpont</th><th>Szolgáltatás</th><th>Lelkész</th><th>Foglaló</th><th>Állapot</th><th></th></tr></thead><tbody>`;
+    for (const b of list) {
+      const k = `a-${b.uid}-${b.id}`;
+      h += `<tr class="${b.status === 'cancelled' ? 'off' : ''}"><td class="num">${esc(fmt(b.start, 'LLL d. (ccc) HH:mm'))}–${esc(fmt(b.end, 'HH:mm'))}</td>
+        <td>${esc((serviceById(b.serviceId) || {}).name || '–')}</td><td>${esc((pastorById(b.pastorId) || {}).name || '–')}</td>
+        <td><b>${esc(b.clientName)}</b><br><span class="small">${esc(b.email)}${b.phone ? ' · ' + esc(b.phone) : ''}</span>${b.note ? `<div class="small muted" style="white-space:pre-wrap">${esc(b.note)}</div>` : ''}</td>
+        <td>${b.status === 'confirmed' ? '<span class="pill ok">Visszaigazolt</span>' : '<span class="pill off">Lemondva</span>'}${b.gcalEventId && b.status === 'confirmed' ? '<br><span class="pill cal">Naptárban</span>' : ''}</td>
+        <td>${b.status === 'confirmed' && b.start > now ? (S.confirmKey === k ? `<div class="row"><button class="btn danger sm" data-act="cancelAdmin" data-uid="${esc(b.uid)}" data-id="${esc(b.id)}">Igen</button><button class="btn sm" data-act="unconfirm">Mégse</button></div>` : `<button class="btn danger sm" data-act="confirm" data-key="${k}">Lemondás</button>`) : ''}</td></tr>`;
+    }
+    return h + `</tbody></table></div>`;
+  }
+
+  function adminGoogle() {
+    const p = myPastor(); const c = S.admin.cal;
+    if (!p) {
+      return `<div class="stack"><div class="notice info">A Google naptár szinkronizálásához először jelölje meg, melyik lelkész Ön: a <b>Lelkészek</b> fülön kattintson a saját nevénél az „Ez vagyok én” gombra.</div>
+      <p class="muted">Minden lelkész a saját claude.ai fiókjával és a saját Google Naptár-kapcsolatával szinkronizál, így mindenki a saját naptárát köti be.</p></div>`;
+    }
+    const g = { busyCalendars: ['primary'], target: 'primary', allDayBusy: false, ...(p.gcal || {}) };
+    const pendingNew = S.allBookings.filter((b) => b.pastorId === p.id && b.status === 'confirmed' && !b.gcalEventId && b.end > Date.now()).length;
+    const pendingDel = S.allBookings.filter((b) => b.pastorId === p.id && b.status === 'cancelled' && b.gcalDeletePending).length;
+    const cals = [{ id: 'primary', summary: 'Elsődleges naptár' }, ...((c.list || []).filter((x) => x.id !== 'primary'))];
+    for (const id of [...g.busyCalendars, g.target]) if (!cals.some((x) => x.id === id)) cals.push({ id, summary: id });
+    let h = `<div class="stack">
+      <div class="card stack"><div class="row between"><h2>${esc(p.name)} naptára</h2>${p.busySyncedAt ? `<span class="small muted">Utolsó szinkronizálás: ${esc(fmt(p.busySyncedAt))}</span>` : '<span class="small muted">Még nem volt szinkronizálás</span>'}</div>
+      <p class="muted">A szinkronizálás beolvassa a kiválasztott naptárak foglalt időszakait (csak az időpontokat, a programok címét nem), így azokra nem lehet foglalni. Az új foglalásokat beírja a célnaptárba, a lemondottakat törli.</p>
+      <div class="row"><button class="btn primary" data-act="sync" ${c.syncing ? 'disabled' : ''}>${c.syncing ? 'Szinkronizálás…' : 'Szinkronizálás most'}</button>
+        <span class="small muted">${pendingNew} új foglalás vár beírásra, ${pendingDel} lemondás törlésre.</span></div>
+      ${c.error ? `<div class="notice err">${esc(c.error)}</div>` : ''}${c.log.length ? `<div class="notice ok">${c.log.map(esc).join('<br>')}</div>` : ''}</div>
+      <form class="card stack" data-form="gcal"><div class="row between"><h2>Naptárak</h2><button class="btn sm" type="button" data-act="loadCals" ${c.loading ? 'disabled' : ''}>${c.loading ? 'Betöltés…' : (c.list ? 'Lista frissítése' : 'Naptáraim betöltése')}</button></div>
+      ${c.list ? '' : '<p class="muted small">Töltse be a naptárlistát, hogy több naptárat is kiválaszthasson (pl. gyülekezeti és személyes).</p>'}
+      <div class="tablewrap"><table><thead><tr><th>Naptár</th><th>Foglaltság figyelése</th><th>Foglalások ide</th></tr></thead><tbody>
+      ${cals.map((x, i) => `<tr><td>${esc(x.summary)}</td><td><input type="checkbox" name="busy" value="${esc(x.id)}" id="gb-${i}" ${g.busyCalendars.includes(x.id) ? 'checked' : ''} aria-label="Foglaltság figyelése: ${esc(x.summary)}"></td>
+        <td><input type="radio" name="target" value="${esc(x.id)}" id="gt-${i}" ${g.target === x.id ? 'checked' : ''} aria-label="Célnaptár: ${esc(x.summary)}"></td></tr>`).join('')}
+      </tbody></table></div>
+      <label class="check"><input type="checkbox" id="g-allday" name="allDayBusy" ${g.allDayBusy ? 'checked' : ''}> Az egész napos események is foglaltnak számítsanak</label>
+      <div><button class="btn primary" type="submit">Mentés</button></div></form></div>`;
+    return h;
+  }
+
+  function adminPastors() {
+    const mp = myPastor();
+    let h = `<div class="row between" style="margin-bottom:12px"><p class="muted">A lelkészek adatai, heti elérhetősége és távollétei.</p><button class="btn primary" data-act="edit" data-kind="pastor" data-id="">+ Új lelkész</button></div>`;
+    if (!S.pastors.length) return h + `<div class="empty-state">Még nincs lelkész. Vegye fel az elsőt, és jelölje meg, ha Ön az.</div>`;
+    h += `<div class="list">`;
+    for (const p of S.pastors) {
+      const avail = Object.entries(p.availability || {}).filter(([, r]) => r.length).map(([d, r]) => `${WD[d].slice(0, 2)} ${r.map((x) => x.join('–')).join(', ')}`).join(' · ');
+      const groups = S.groups.filter((g) => (g.memberIds || []).includes(p.id)).map((g) => g.name);
+      h += `<div class="card item ${p.active === false ? 'off' : ''}"><div class="stack" style="gap:4px">
+        <div class="row"><h3>${esc(p.name)}</h3>${p.active === false ? '<span class="pill off">Inaktív</span>' : ''}${p.userId ? `<span class="pill cal">${p.userId === S.me.id ? 'Ez Ön' : 'Fiókhoz kötve'}</span>` : ''}${p.busySyncedAt ? '<span class="pill ok">Google szinkron</span>' : ''}</div>
+        ${p.title || p.congregation ? `<p class="meta">${esc([p.title, p.congregation].filter(Boolean).join(' · '))}</p>` : ''}
+        <p class="small muted">${esc(avail || 'Nincs megadott elérhetőség')}</p>
+        ${groups.length ? `<div class="chips">${groups.map((n) => `<span class="chip">${esc(n)}</span>`).join('')}</div>` : ''}</div>
+        <div class="row"><button class="btn sm" data-act="edit" data-kind="pastor" data-id="${esc(p.id)}">Szerkesztés</button>
+        ${!p.userId && !mp ? `<button class="btn sm" data-act="claim" data-id="${esc(p.id)}">Ez vagyok én</button>` : ''}
+        ${p.userId === S.me.id ? `<button class="btn sm ghost" data-act="unclaim" data-id="${esc(p.id)}">Leválasztás rólam</button>` : ''}</div></div>`;
+    }
+    return h + `</div>`;
+  }
+
+  function adminServices() {
+    let h = `<div class="row between" style="margin-bottom:12px"><p class="muted">A foglalható szolgáltatások és a hozzájuk rendelt lelkészek.</p><button class="btn primary" data-act="edit" data-kind="service" data-id="">+ Új szolgáltatás</button></div>`;
+    if (!S.services.length) return h + `<div class="empty-state">Még nincs szolgáltatás.</div>`;
+    h += `<div class="grid">${S.services.map((s) => `<div class="card stack" style="gap:6px;border-left:4px solid ${esc(s.color || 'var(--accent)')}">
+      <div class="row between"><h3>${esc(s.name)}</h3>${s.active === false ? '<span class="pill off">Inaktív</span>' : ''}</div>
+      <p class="meta">${esc(s.durationMin)} perc${s.bufferMin ? ` + ${esc(s.bufferMin)} perc szünet` : ''}${s.location ? ' · ' + esc(s.location) : ''}</p>
+      <p class="small muted">Lelkészek: ${esc((s.pastorIds || []).map((id) => (pastorById(id) || {}).name).filter(Boolean).join(', ') || '–')}</p>
+      <div><button class="btn sm" data-act="edit" data-kind="service" data-id="${esc(s.id)}">Szerkesztés</button></div></div>`).join('')}</div>`;
+    return h;
+  }
+
+  function groupLink(g) { const base = (cfg().shareBase || '').replace(/#.*$/, ''); return `${base}#csoport-${g.slug}`; }
+  function adminGroups() {
+    const existing = new Set(S.groups.map((g) => g.name.toLowerCase()));
+    const congr = {};
+    for (const p of activePastors()) if (p.congregation && !existing.has(p.congregation.toLowerCase())) (congr[p.congregation] ||= []).push(p.id);
+    let h = `<div class="row between" style="margin-bottom:12px"><p class="muted" style="max-width:65ch">Minden csoport (gyülekezet, munkacsoport) saját linket kap. Aki ezt megnyitja, csak a csoport lelkészeinél foglalhat.</p><button class="btn primary" data-act="edit" data-kind="group" data-id="">+ Új csoport</button></div>`;
+    if (!cfg().shareBase) h += `<div class="notice warn" style="margin-bottom:12px">A teljes megosztható linkhez adja meg az oldal címét a Beállítások fülön (a „Megosztás → Link másolása” gombbal kapott cím).</div>`;
+    if (Object.keys(congr).length) h += `<div class="card stack" style="margin-bottom:12px"><h3>Csoport létrehozása gyülekezetből</h3><div class="chips">${Object.entries(congr).map(([n, ids]) => `<button class="chip" data-act="fromCongr" data-name="${esc(n)}">+ ${esc(n)} (${ids.length} lelkész)</button>`).join('')}</div></div>`;
+    if (!S.groups.length) return h + `<div class="empty-state">Még nincs csoport.</div>`;
+    h += `<div class="grid">${S.groups.map((g, i) => `<div class="card stack" style="gap:8px">
+      <div><span class="eyebrow">${esc(KINDS[g.kind] || 'Csoport')}${g.active === false ? ' · inaktív' : ''}</span><h3>${esc(g.name)}</h3></div>
+      <p class="small muted">Lelkészek: ${esc((g.memberIds || []).map((id) => (pastorById(id) || {}).name).filter(Boolean).join(', ') || '–')}</p>
+      <div class="share"><input id="gl-${i}" readonly value="${esc(groupLink(g))}" aria-label="Megosztható link"><button class="btn sm" data-act="copy" data-target="gl-${i}">Másolás</button></div>
+      <div class="row"><button class="btn sm" data-act="nav" data-hash="csoport-${esc(g.slug)}">Megnyitás</button><button class="btn sm" data-act="edit" data-kind="group" data-id="${esc(g.id)}">Szerkesztés</button></div></div>`).join('')}</div>`;
+    return h;
+  }
+
+  function adminSettings() {
+    const c = cfg();
+    return `<form class="card stack" data-form="settings">
+      <label class="f">Gyülekezet neve<input id="st-org" name="orgName" value="${esc(c.orgName)}"></label>
+      <label class="f">Bevezető szöveg<textarea id="st-intro" name="intro" rows="3">${esc(c.intro)}</textarea></label>
+      <div class="fgrid">
+        <label class="f">Legalább ennyi órával előre<input id="st-min" name="minNoticeHours" type="number" min="0" value="${esc(c.minNoticeHours)}"></label>
+        <label class="f">Legfeljebb ennyi nappal előre<input id="st-max" name="maxDaysAhead" type="number" min="1" max="365" value="${esc(c.maxDaysAhead)}"></label>
+        <label class="f">Időpontok lépésköze (perc)<input id="st-step" name="stepMin" type="number" min="5" max="240" value="${esc(c.stepMin)}"></label>
+      </div>
+      <label class="f">Az oldal megosztható címe<input id="st-share" name="shareBase" value="${esc(c.shareBase)}" placeholder="https://claude.ai/artifact/…"><span class="small muted">Ebből készülnek a csoportlinkek.</span></label>
+      <label class="check"><input id="st-inv" type="checkbox" name="inviteClient" ${c.inviteClient !== false ? 'checked' : ''}> A foglaló kapjon Google Naptár-meghívót, amikor a foglalás bekerül a lelkész naptárába</label>
+      <div><button class="btn primary" type="submit">Mentés</button></div></form>`;
+  }
+
+  function viewEditor() {
+    const { kind, id } = S.admin.edit;
+    const back = `<div style="margin-bottom:12px"><button class="btn ghost sm" data-act="closeEdit">← Vissza</button></div>`;
+    const delBtn = (k) => id ? (S.confirmKey === k ? `<button class="btn danger" type="button" data-act="del" data-kind="${kind}" data-id="${esc(id)}">Igen, törlöm</button><button class="btn" type="button" data-act="unconfirm">Mégse</button>` : `<button class="btn danger" type="button" data-act="confirm" data-key="${k}">Törlés</button>`) : '';
+    if (kind === 'pastor') {
+      const p = pastorById(id) || { active: true, availability: { 1: [['09:00', '12:00'], ['14:00', '17:00']], 2: [['09:00', '12:00'], ['14:00', '17:00']], 3: [['09:00', '12:00'], ['14:00', '17:00']], 4: [['09:00', '12:00'], ['14:00', '17:00']], 5: [['09:00', '12:00']] }, timeOff: [] };
+      const av = p.availability || {};
+      return back + `<form class="card stack" data-form="pastor" data-id="${esc(id)}"><h2>${id ? 'Lelkész szerkesztése' : 'Új lelkész'}</h2>
+        <div class="fgrid"><label class="f">Név *<input id="pe-name" name="name" required value="${esc(p.name)}"></label>
+        <label class="f">Megnevezés<input id="pe-title" name="title" value="${esc(p.title)}" placeholder="pl. parókus lelkész"></label>
+        <label class="f">Gyülekezet<input id="pe-congr" name="congregation" value="${esc(p.congregation)}" list="congrs"></label></div>
+        <datalist id="congrs">${[...new Set(S.pastors.map((x) => x.congregation).filter(Boolean))].map((c) => `<option value="${esc(c)}">`).join('')}</datalist>
+        <label class="f">Rövid bemutatkozás<textarea id="pe-bio" name="bio" rows="3">${esc(p.bio)}</textarea></label>
+        <label class="check"><input id="pe-active" type="checkbox" name="active" ${p.active !== false ? 'checked' : ''}> Aktív (foglalható)</label>
+        <h3>Heti elérhetőség</h3><p class="small muted">Több időszakot vesszővel válasszon el, pl. 09:00-12:00, 14:00-17:00. Üres nap: nem foglalható.</p>
+        <div class="week-form">${[1, 2, 3, 4, 5, 6, 7].map((d) => `<label>${WD[d]}<input id="pe-d${d}" name="d${d}" value="${esc((av[d] || []).map((r) => r.join('-')).join(', '))}"></label>`).join('')}</div>
+        <h3>Távollétek</h3>
+        <div class="list">${(p.timeOff || []).map((t, i) => `<div class="row"><span class="num">${esc(t.from)}${t.to && t.to !== t.from ? ' – ' + esc(t.to) : ''}</span>${t.note ? `<span class="muted">${esc(t.note)}</span>` : ''}<button class="btn sm ghost" type="button" data-act="rmOff" data-i="${i}">Törlés</button></div>`).join('') || '<p class="small muted">Nincs rögzített távollét.</p>'}</div>
+        <div class="fgrid"><label class="f">Kezdete<input id="pe-off-from" type="date" name="offFrom"></label><label class="f">Vége<input id="pe-off-to" type="date" name="offTo"></label><label class="f">Megjegyzés<input id="pe-off-note" name="offNote" placeholder="pl. szabadság"></label></div>
+        <p class="small muted">Az itt megadott távollét a Mentéskor kerül rögzítésre.</p>
+        <div class="row"><button class="btn primary" type="submit">Mentés</button>${delBtn('del-p-' + id)}</div></form>`;
+    }
+    if (kind === 'service') {
+      const s = serviceById(id) || { durationMin: 60, bufferMin: 15, active: true, color: '#2c5d73', pastorIds: [], sort: S.services.length };
+      return back + `<form class="card stack" data-form="service" data-id="${esc(id)}"><h2>${id ? 'Szolgáltatás szerkesztése' : 'Új szolgáltatás'}</h2>
+        <label class="f">Név *<input id="se-name" name="name" required value="${esc(s.name)}"></label>
+        <label class="f">Leírás<textarea id="se-desc" name="description" rows="2">${esc(s.description)}</textarea></label>
+        <div class="fgrid"><label class="f">Időtartam (perc)<input id="se-dur" type="number" name="durationMin" min="5" max="600" value="${esc(s.durationMin)}"></label>
+        <label class="f">Szünet előtte/utána (perc)<input id="se-buf" type="number" name="bufferMin" min="0" max="240" value="${esc(s.bufferMin)}"></label>
+        <label class="f">Helyszín<input id="se-loc" name="location" value="${esc(s.location)}" placeholder="pl. Lelkészi hivatal"></label>
+        <label class="f">Szín<input id="se-color" type="color" name="color" value="${esc(s.color || '#2c5d73')}"></label>
+        <label class="f">Sorrend<input id="se-sort" type="number" name="sort" value="${esc(s.sort || 0)}"></label></div>
+        <label class="check"><input id="se-active" type="checkbox" name="active" ${s.active !== false ? 'checked' : ''}> Aktív (foglalható)</label>
+        <h3>Lelkészek, akiknél foglalható</h3>
+        <div class="chips">${S.pastors.map((p, i) => `<label class="chip"><input id="se-p${i}" type="checkbox" name="pastorIds" value="${esc(p.id)}" ${(s.pastorIds || []).includes(p.id) ? 'checked' : ''}> ${esc(p.name)}</label>`).join('') || '<span class="muted small">Előbb vegyen fel lelkészt.</span>'}</div>
+        <div class="row"><button class="btn primary" type="submit">Mentés</button>${delBtn('del-s-' + id)}</div></form>`;
+    }
+    const g = S.groups.find((x) => x.id === id) || { kind: 'gyulekezet', active: true, memberIds: myPastor() ? [myPastor().id] : [] };
+    return back + `<form class="card stack" data-form="group" data-id="${esc(id)}"><h2>${id ? 'Csoport szerkesztése' : 'Új csoport'}</h2>
+      <div class="fgrid"><label class="f">Név *<input id="ge-name" name="name" required value="${esc(g.name)}" placeholder="pl. Budavári Gyülekezet"></label>
+      <label class="f">Típus<select id="ge-kind" name="kind">${Object.entries(KINDS).map(([k, l]) => `<option value="${k}" ${g.kind === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label class="f">Link-azonosító<input id="ge-slug" name="slug" value="${esc(g.slug)}" placeholder="automatikus a névből"></label></div>
+      <label class="f">Leírás (a csoport oldalán jelenik meg)<textarea id="ge-desc" name="description" rows="2">${esc(g.description)}</textarea></label>
+      <label class="check"><input id="ge-active" type="checkbox" name="active" ${g.active !== false ? 'checked' : ''}> Aktív (a link működik)</label>
+      <h3>Lelkészek a csoportban</h3>
+      <div class="chips">${S.pastors.map((p, i) => `<label class="chip"><input id="ge-p${i}" type="checkbox" name="memberIds" value="${esc(p.id)}" ${(g.memberIds || []).includes(p.id) ? 'checked' : ''}> ${esc(p.name)}${p.congregation ? ` <span class="muted">(${esc(p.congregation)})</span>` : ''}</label>`).join('')}</div>
+      <div class="row"><button class="btn primary" type="submit">Mentés</button>${delBtn('del-g-' + id)}</div></form>`;
+  }
+
+  // ---------- mentések ----------
+  async function save(path, data, okMsg) {
+    try { await S.db.doc(path).set(data); toast(okMsg); return true; } catch (e) { toast(dbErr(e), 'err'); return false; }
+  }
+  async function onForm(form) {
+    const kind = form.dataset.form; const fd = new FormData(form);
+    const str = (k, n = 500) => String(fd.get(k) || '').trim().slice(0, n);
+    if (kind === 'booking') return submitBooking();
+    if (kind === 'settings') {
+      const ok = await save('config/main', { ...S.config, orgName: str('orgName', 120) || 'Gyülekezet', intro: str('intro', 600), minNoticeHours: Math.max(0, Number(fd.get('minNoticeHours')) || 0), maxDaysAhead: Math.min(365, Math.max(1, Number(fd.get('maxDaysAhead')) || 60)), stepMin: Math.min(240, Math.max(5, Number(fd.get('stepMin')) || 30)), shareBase: str('shareBase', 300), inviteClient: fd.get('inviteClient') === 'on' }, 'Beállítások mentve.');
+      return ok;
+    }
+    if (kind === 'gcal') {
+      const p = myPastor(); if (!p) return;
+      const busy = fd.getAll('busy').map(String);
+      const target = String(fd.get('target') || 'primary');
+      try { await S.db.doc('pastors/' + p.id).update({ gcal: { busyCalendars: busy, target, allDayBusy: fd.get('allDayBusy') === 'on' } }); toast('Naptárbeállítások mentve. A változás a következő szinkronizáláskor érvényesül.'); }
+      catch (e) { toast(dbErr(e), 'err'); }
+      return;
+    }
+    const id = form.dataset.id || rid(kind[0]);
+    if (kind === 'pastor') {
+      const old = pastorById(id) || {};
+      const availability = {};
+      try { for (let d = 1; d <= 7; d++) { const r = parseRanges(fd.get('d' + d)); if (r.length) availability[d] = r; } } catch (e) { toast(e.message, 'err'); return; }
+      const timeOff = [...(old.timeOff || [])];
+      const from = str('offFrom', 10);
+      if (from) { const to = str('offTo', 10) || from; if (to < from) { toast('A távollét vége nem lehet korábbi a kezdeténél.', 'err'); return; } timeOff.push({ from, to, note: str('offNote', 120) }); }
+      const data = { ...old, name: str('name', 120), title: str('title', 120), congregation: str('congregation', 120), bio: str('bio', 1000), active: fd.get('active') === 'on', availability, timeOff };
+      delete data.id;
+      if (!data.name) { toast('A név kötelező.', 'err'); return; }
+      if (await save('pastors/' + id, data, 'Lelkész mentve.')) S.admin.edit = { kind, id };
+      render(); return;
+    }
+    if (kind === 'service') {
+      const old = serviceById(id) || {};
+      const data = { ...old, name: str('name', 120), description: str('description', 600), durationMin: Math.min(600, Math.max(5, Number(fd.get('durationMin')) || 60)), bufferMin: Math.min(240, Math.max(0, Number(fd.get('bufferMin')) || 0)), location: str('location', 120), color: /^#[0-9a-f]{6}$/i.test(fd.get('color')) ? fd.get('color') : '#2c5d73', sort: Number(fd.get('sort')) || 0, active: fd.get('active') === 'on', pastorIds: fd.getAll('pastorIds').map(String) };
+      delete data.id;
+      if (!data.name) { toast('A név kötelező.', 'err'); return; }
+      if (await save('services/' + id, data, 'Szolgáltatás mentve.')) S.admin.edit = null;
+      render(); return;
+    }
+    if (kind === 'group') {
+      const old = S.groups.find((g) => g.id === id) || {};
+      let slug = slugify(fd.get('slug') || fd.get('name'));
+      if (!slug) { toast('A név kötelező.', 'err'); return; }
+      if (S.groups.some((g) => g.slug === slug && g.id !== id)) { toast('Ez a link-azonosító már foglalt, válasszon másikat.', 'err'); return; }
+      const data = { ...old, name: str('name', 120), kind: KINDS[fd.get('kind')] ? String(fd.get('kind')) : 'egyeb', slug, description: str('description', 600), active: fd.get('active') === 'on', memberIds: fd.getAll('memberIds').map(String) };
+      delete data.id;
+      if (await save('groups/' + id, data, 'Csoport mentve.')) S.admin.edit = null;
+      render();
+    }
+  }
+
+  // ---------- eseménykezelés ----------
+  document.addEventListener('submit', (e) => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); onForm(f); });
+  document.addEventListener('input', (e) => {
+    const el = e.target;
+    if (el.dataset.bind && S.flow) { S.flow.form[el.dataset.bind] = el.type === 'checkbox' ? el.checked : el.value; if (el.type === 'checkbox') render(); }
+  });
+  document.addEventListener('change', (e) => {
+    const el = e.target;
+    if (el.dataset.act === 'pastor') { S.flow.pastor = el.value; S.flow.slot = null; render(); }
+    if (el.dataset.act === 'filterPastor') { S.admin.filterPastor = el.value; render(); }
+  });
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-act]'); if (!b || b.tagName === 'INPUT' || b.tagName === 'SELECT') return;
+    const act = b.dataset.act; const id = b.dataset.id;
+    switch (act) {
+      case 'nav': go(b.dataset.hash || ''); break;
+      case 'book': S.done = null; S.flow = { serviceId: id, pastor: b.dataset.pastor || 'any', weekStart: today(), slot: null, form: S.flow ? S.flow.form : { name: '', email: '', phone: '', note: '', consent: false }, error: null, busy: false }; render(); window.scrollTo(0, 0); break;
+      case 'back': S.flow = null; S.done = null; render(); break;
+      case 'week': { const n = L.DateTime.fromISO(S.flow.weekStart).plus({ days: Number(b.dataset.d) }).toISODate(); S.flow.weekStart = n < today() ? today() : n; render(); break; }
+      case 'slot': {
+        const svc = serviceById(S.flow.serviceId); const start = Number(b.dataset.start);
+        const ids = S.flow.pastor === 'any' ? pastorsFor(svc).map((p) => p.id) : [S.flow.pastor];
+        const day = slotsFor(svc, ids, L.DateTime.fromMillis(start, { zone: TZ }).toISODate(), 1)[0];
+        S.flow.slot = day.slots.find((s) => s.start === start) || null; S.flow.error = null; render(); break;
+      }
+      case 'confirm': S.confirmKey = b.dataset.key; render(); break;
+      case 'unconfirm': S.confirmKey = null; render(); break;
+      case 'cancelMine': { const bk = S.myDoc.items[id]; S.confirmKey = null; await cancelBooking(S.me.id, id, bk); break; }
+      case 'cancelAdmin': { const bk = S.allBookings.find((x) => x.id === id && x.uid === b.dataset.uid); S.confirmKey = null; await cancelBooking(b.dataset.uid, id, bk); break; }
+      case 'tab': S.admin.tab = b.dataset.tab; S.admin.edit = null; S.confirmKey = null; render(); break;
+      case 'past': S.admin.past = b.dataset.v === '1'; render(); break;
+      case 'edit': S.admin.edit = { kind: b.dataset.kind, id: id || '' }; S.confirmKey = null; render(); window.scrollTo(0, 0); break;
+      case 'closeEdit': S.admin.edit = null; S.confirmKey = null; render(); break;
+      case 'del': {
+        const path = { pastor: 'pastors/', service: 'services/', group: 'groups/' }[b.dataset.kind] + id;
+        try { await S.db.doc(path).delete(); toast('Törölve.', 'info'); S.admin.edit = null; S.confirmKey = null; render(); } catch (err) { toast(dbErr(err), 'err'); }
+        break;
+      }
+      case 'rmOff': {
+        const p = pastorById(S.admin.edit.id); if (!p) break;
+        const timeOff = (p.timeOff || []).filter((_, i) => i !== Number(b.dataset.i));
+        try { await S.db.doc('pastors/' + p.id).update({ timeOff }); } catch (err) { toast(dbErr(err), 'err'); }
+        break;
+      }
+      case 'claim': try { await S.db.doc('pastors/' + id).update({ userId: S.me.id }); toast('Rendben, ez a lelkészi profil Önhöz tartozik. Most bekötheti a Google naptárát.'); } catch (err) { toast(dbErr(err), 'err'); } break;
+      case 'unclaim': try { await S.db.doc('pastors/' + id).update({ userId: null }); toast('Leválasztva.', 'info'); } catch (err) { toast(dbErr(err), 'err'); } break;
+      case 'loadCals': loadCalendars(); break;
+      case 'sync': syncGoogle(); break;
+      case 'fromCongr': {
+        const name = b.dataset.name; const gid = rid('g');
+        let slug = slugify(name); let n = 2; while (S.groups.some((g) => g.slug === slug)) slug = `${slugify(name)}-${n++}`;
+        await save('groups/' + gid, { name, slug, kind: 'gyulekezet', description: '', active: true, memberIds: activePastors().filter((p) => p.congregation === name).map((p) => p.id) }, `„${name}” csoport létrehozva.`);
+        break;
+      }
+      case 'copy': {
+        const input = document.getElementById(b.dataset.target);
+        try { await navigator.clipboard.writeText(input.value); b.textContent = 'Másolva ✓'; } catch (_) { input.select(); b.textContent = 'Kijelölve – másolja ki'; }
+        setTimeout(() => { b.textContent = 'Másolás'; }, 1800);
+        break;
+      }
+    }
+  });
+
+  boot();
+})();
+</script>

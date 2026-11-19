@@ -1,0 +1,43 @@
+<%- include('partials/header') %>
+<p><a href="<%= back %>">← Vissza</a></p>
+<section class="card narrow stack">
+  <h1>Kétfaktoros hitelesítés</h1>
+  <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <% if (codes) { %>
+    <div class="alert alert-success">A kétfaktoros hitelesítés be van kapcsolva.</div>
+    <h2>Tartalékkódok</h2>
+    <p>Ha elveszíti a telefonját, ezekkel a kódokkal tud belépni. Mindegyik <strong>egyszer</strong> használható.
+      Írja le vagy mentse el őket biztonságos helyre – <strong>most látja őket utoljára</strong>.</p>
+    <ul class="codes"><% codes.forEach(function (c) { %><li><code><%= c %></code></li><% }) %></ul>
+    <p><a class="btn btn-primary" href="<%= back %>">Kész, elmentettem</a></p>
+
+  <% } else if (enabled) { %>
+    <div class="alert alert-success">Bekapcsolva. Belépéskor a jelszó után a hitelesítő alkalmazás kódját is kérjük.</div>
+    <p class="muted">Fel nem használt tartalékkódok: <strong><%= backupLeft %></strong></p>
+    <h2>Kikapcsolás</h2>
+    <form method="post" action="<%= base %>/2fa/kikapcsolas" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label>Az alkalmazásban látható kód vagy egy tartalékkód
+        <input name="code" required autocomplete="one-time-code" inputmode="numeric" maxlength="11"></label>
+      <button class="btn btn-danger">Kétfaktoros hitelesítés kikapcsolása</button>
+    </form>
+
+  <% } else { %>
+    <p>A kétfaktoros hitelesítés <strong>nem kötelező</strong>, de erősen ajánlott: így a jelszava mellé a telefonja is kell a belépéshez.</p>
+    <ol class="steps">
+      <li>Telepítsen egy hitelesítő alkalmazást (pl. Google Authenticator, Microsoft Authenticator vagy Authy).</li>
+      <li>Olvassa be vele ezt a QR-kódot:
+        <div class="qr"><img src="<%= setup.qr %>" alt="QR-kód a hitelesítő alkalmazáshoz" width="220" height="220"></div>
+        <p class="muted small">Ha nem tudja beolvasni, írja be kézzel ezt a kulcsot: <code><%= setup.secret %></code></p>
+      </li>
+      <li>Írja be az alkalmazásban megjelenő 6 jegyű kódot:</li>
+    </ol>
+    <form method="post" action="<%= base %>/2fa" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label>Ellenőrző kód<input name="code" required autocomplete="one-time-code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7"></label>
+      <button class="btn btn-primary">Bekapcsolás</button>
+    </form>
+  <% } %>
+</section>
+<%- include('partials/footer') %>

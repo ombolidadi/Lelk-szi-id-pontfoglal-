@@ -1,0 +1,58 @@
+<%- include('../partials/header') %>
+<h1>Foglalások</h1>
+
+<% if (!hasServices || !hasAvailability || (googleReady && !accounts)) { %>
+<div class="card todo">
+  <h3>Teendők a kezdéshez</h3>
+  <ul>
+    <% if (googleReady && !accounts) { %><li><a href="/admin/google">Csatlakoztassa a Google naptárát</a>, hogy a foglalások bekerüljenek, és a meglévő programjai ne legyenek foglalhatók.</li><% } %>
+    <% if (!hasAvailability) { %><li><a href="/admin/availability">Állítsa be a heti elérhetőségét.</a></li><% } %>
+    <% if (!hasServices) { %><li><a href="/admin/services">Jelölje ki, mely szolgáltatásokat vállalja.</a></li><% } %>
+  </ul>
+</div>
+<% } %>
+
+<div class="tabs">
+  <a href="/admin?<%= showAll ? 'mind=1' : '' %>" class="<%= !past ? 'active' : '' %>">Közelgő</a>
+  <a href="/admin?korabbi=1<%= showAll ? '&mind=1' : '' %>" class="<%= past ? 'active' : '' %>">Korábbi</a>
+  <% if (currentUser.role === 'admin') { %>
+    <span class="spacer"></span>
+    <a href="/admin?<%= past ? 'korabbi=1&' : '' %><%= showAll ? '' : 'mind=1' %>"><%= showAll ? 'Csak az enyéim' : 'Minden lelkész' %></a>
+  <% } %>
+</div>
+
+<% if (!bookings.length) { %>
+  <p class="muted">Nincs megjeleníthető foglalás.</p>
+<% } else { %>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Időpont</th><th>Szolgáltatás</th><% if (showAll) { %><th>Lelkész</th><% } %><th>Ügyfél</th><th>Állapot</th><th></th></tr></thead>
+  <tbody>
+  <% bookings.forEach(function (b) { %>
+    <tr class="<%= b.status === 'cancelled' ? 'cancelled' : '' %>">
+      <td><%= fmt(b.start_utc, 'yyyy. LLL d. (ccc) HH:mm') %>–<%= fmt(b.end_utc, 'HH:mm') %></td>
+      <td><%= b.service_name %></td>
+      <% if (showAll) { %><td><%= b.pastor_name %></td><% } %>
+      <td>
+        <strong><%= b.client_name %></strong><br>
+        <a href="mailto:<%= b.client_email %>"><%= b.client_email %></a>
+        <% if (b.client_phone) { %><br><a href="tel:<%= b.client_phone %>"><%= b.client_phone %></a><% } %>
+        <% if (b.note) { %><div class="note"><%= b.note %></div><% } %>
+      </td>
+      <td><%= b.status === 'confirmed' ? 'Visszaigazolt' : 'Lemondva' %><% if (b.google_event_id) { %><br><small class="muted">Google naptárban</small><% } %></td>
+      <td>
+        <% if (b.status === 'confirmed' && !past) { %>
+        <form method="post" action="/admin/bookings/<%= b.id %>/cancel" onsubmit="return confirm('Biztosan lemondja? Az ügyfél értesítést kap.')">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <input type="hidden" name="back" value="/admin<%= showAll ? '?mind=1' : '' %>">
+          <button class="btn btn-small btn-danger">Lemondás</button>
+        </form>
+        <% } %>
+      </td>
+    </tr>
+  <% }) %>
+  </tbody>
+</table>
+</div>
+<% } %>
+<%- include('../partials/footer') %>

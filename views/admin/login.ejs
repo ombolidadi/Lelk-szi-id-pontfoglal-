@@ -1,0 +1,12 @@
+<%- include('../partials/header') %>
+<section class="card narrow">
+  <h1>Lelkészi belépés</h1>
+  <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+  <form method="post">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>E-mail cím<input name="email" type="email" required autocomplete="username"></label>
+    <label>Jelszó<input name="password" type="password" required autocomplete="current-password"></label>
+    <button class="btn btn-primary">Belépés</button>
+  </form>
+</section>
+<%- include('../partials/footer') %>
