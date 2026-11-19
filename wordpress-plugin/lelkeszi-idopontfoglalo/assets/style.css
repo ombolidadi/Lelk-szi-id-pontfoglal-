@@ -324,3 +324,6 @@ th { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; }
 .footer { background: var(--band); color: var(--on-band-muted); border-top: 0; font-size: .85rem; }
 .footer a { color: var(--on-band); }
 .footer .tm { display: block; margin-top: .3rem; font-size: .78rem; opacity: .8; }
+.account-head { align-items: center; }
+.account-head h1 { margin-bottom: .6rem; }
+.new-booking h3 { margin-bottom: .6rem; }

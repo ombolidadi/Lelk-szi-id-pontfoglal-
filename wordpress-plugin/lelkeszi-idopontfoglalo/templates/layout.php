@@ -37,6 +37,8 @@ if ( $portal ) {
 					</form>
 				<?php endif; ?>
 			<?php elseif ( $user->exists() ) : ?>
+				<?php $lif_new = $group ? $group : ( lif_known_groups( $user->ID )[0] ?? null ); ?>
+				<?php if ( $lif_new ) : ?><a href="<?php echo esc_url( lif_group_url( $lif_new ) ); ?>">Új foglalás</a><?php endif; ?>
 				<a href="<?php echo esc_url( lif_url( '/fiok' ) ); ?>">Foglalásaim</a>
 				<form method="post" action="<?php echo esc_url( lif_url( '/fiok/kilepes' ) ); ?>" class="inline">
 					<?php lif_nonce_field(); ?>

@@ -200,7 +200,48 @@ function lif_group_catalog( $group ) {
  * 1. kinél (lelkész)  2. milyen alkalomra (szolgáltatás)  3. mikor (időpont)
  * utána a bejelentkezés felajánlása, majd az adatok – a foglaláskor fiók is létrehozható (nem kötelező).
  */
+/** A legutóbb megnyitott csoport megjegyzése, hogy a Foglalásaim oldalról vissza lehessen jutni. */
+function lif_remember_group( $group ) {
+	setcookie( 'lif_last_group', $group->slug, array(
+		'expires'  => time() + 180 * DAY_IN_SECONDS,
+		'path'     => COOKIEPATH ? COOKIEPATH : '/',
+		'secure'   => is_ssl(),
+		'httponly' => true,
+		'samesite' => 'Lax',
+	) );
+	$_COOKIE['lif_last_group'] = $group->slug;
+}
+
+/**
+ * A látogató ismert csoportjai (ahol foglalhat): a legutóbb megnyitott csoport és a foglalásai csoportjai.
+ * Csak aktív csoportokat ad vissza, a legutóbb megnyitottat előre véve.
+ */
+function lif_known_groups( $user_id = 0 ) {
+	global $wpdb;
+	$groups = array();
+	if ( ! empty( $_COOKIE['lif_last_group'] ) ) {
+		$g = lif_group_by_slug( sanitize_title( wp_unslash( $_COOKIE['lif_last_group'] ) ) );
+		if ( $g ) {
+			$groups[ $g->id ] = $g;
+		}
+	}
+	if ( $user_id ) {
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			'SELECT g.* FROM ' . lif_t( 'groups' ) . ' g JOIN ' . lif_t( 'bookings' ) . ' b ON b.group_id = g.id
+			WHERE b.client_id = %d AND g.active = 1 GROUP BY g.id ORDER BY MAX(b.created_at) DESC',
+			$user_id
+		) );
+		foreach ( $rows as $g ) {
+			if ( ! isset( $groups[ $g->id ] ) ) {
+				$groups[ $g->id ] = $g;
+			}
+		}
+	}
+	return array_values( $groups );
+}
+
 function lif_route_group( $group ) {
+	lif_remember_group( $group );
 	list( $pastors, $services ) = lif_group_catalog( $group );
 	$user  = wp_get_current_user();
 	$error = null;
@@ -371,6 +412,9 @@ function lif_route_booking( $token ) {
 		lif_redirect( lif_url( '/foglalas/' . $token ) );
 	}
 	$pastor = get_userdata( $b->user_id );
+	if ( $b->group_slug ) {
+		lif_remember_group( lif_group_by_slug( $b->group_slug ) );
+	}
 	lif_render( 'booking', array(
 		'b'        => $b,
 		'pastor'   => $pastor,
@@ -568,14 +612,15 @@ function lif_route_account_dashboard( $user ) {
 		'webcal' => $webcal,
 		'google' => 'https://calendar.google.com/calendar/render?cid=' . rawurlencode( $webcal ),
 	);
-	$last_group = null;
+	$known_groups = lif_known_groups( $user->ID );
+	$last_group   = null;
 	foreach ( $rows as $r ) {
 		if ( $r->group_slug ) {
 			$last_group = $r;
 			break;
 		}
 	}
-	lif_render( 'account', compact( 'user', 'upcoming', 'past', 'cal', 'last_group' ), 'Foglalásaim' );
+	lif_render( 'account', compact( 'user', 'upcoming', 'past', 'cal', 'last_group', 'known_groups' ), 'Foglalásaim' );
 }
 
 /* ---------- Kétfaktoros hitelesítés oldalai ---------- */

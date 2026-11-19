@@ -23,8 +23,24 @@ $row = function ( $b, $can_cancel ) {
 	<?php
 };
 ?>
-<?php if ( $last_group ) : ?><p><a href="<?php echo esc_url( lif_url( '/' . $last_group->group_slug ) ); ?>">← Új időpont foglalása (<?php echo esc_html( $last_group->group_name ); ?>)</a></p><?php endif; ?>
-<h1>Foglalásaim</h1>
+<div class="row-between account-head">
+	<h1>Foglalásaim</h1>
+	<?php if ( 1 === count( $known_groups ) ) : ?>
+		<a class="btn btn-primary" href="<?php echo esc_url( lif_group_url( $known_groups[0] ) ); ?>">+ Új időpont foglalása</a>
+	<?php endif; ?>
+</div>
+<?php if ( count( $known_groups ) > 1 ) : ?>
+	<section class="card new-booking">
+		<h3>Új időpont foglalása</h3>
+		<div class="actions">
+			<?php foreach ( $known_groups as $kg ) : ?>
+				<a class="btn btn-primary" href="<?php echo esc_url( lif_group_url( $kg ) ); ?>"><?php echo esc_html( $kg->name ); ?></a>
+			<?php endforeach; ?>
+		</div>
+	</section>
+<?php elseif ( ! $known_groups ) : ?>
+	<p class="muted">Új időpontot a gyülekezetétől vagy lelkészétől kapott foglalási linken foglalhat.</p>
+<?php endif; ?>
 
 <h2>Közelgő időpontok</h2>
 <?php if ( ! $upcoming ) : ?><p class="muted">Nincs közelgő foglalása.</p><?php endif; ?>
