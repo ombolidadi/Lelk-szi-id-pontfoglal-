@@ -344,3 +344,6 @@ th { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; }
 .day-row.is-off .day-closed { display: block; }
 .day-row.is-off strong { color: var(--muted); }
 @media (max-width: 640px) { .day-row { grid-template-columns: 1fr; } }
+.week-start { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding-bottom: 1rem; margin-bottom: .3rem; border-bottom: 1px solid var(--border); }
+.week-start label { margin: 0; font-weight: 600; }
+.week-start select { width: auto !important; margin-top: 0 !important; min-width: 10rem; }

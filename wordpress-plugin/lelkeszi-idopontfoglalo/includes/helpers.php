@@ -11,6 +11,21 @@ const LIF_KINDS = array(
 	'munkacsoport' => 'Munkacsoport',
 	'egyeb'        => 'Egyéb csoport',
 );
+/** A felhasználó által választott első nap (1 = hétfő … 7 = vasárnap), alapból hétfő. */
+function lif_week_start( $user_id = 0 ) {
+	$v = (int) get_user_meta( $user_id ? $user_id : get_current_user_id(), 'lif_week_start', true );
+	return ( $v >= 1 && $v <= 7 ) ? $v : 1;
+}
+
+/** A hét napjai (1–7) a választott első nappal kezdve. */
+function lif_ordered_weekdays( $start ) {
+	$out = array();
+	for ( $i = 0; $i < 7; $i++ ) {
+		$out[] = ( ( $start - 1 + $i ) % 7 ) + 1;
+	}
+	return $out;
+}
+
 function lif_kind_label( $kind ) {
 	return array_key_exists( (string) $kind, LIF_KINDS ) ? LIF_KINDS[ $kind ] : 'Csoport';
 }

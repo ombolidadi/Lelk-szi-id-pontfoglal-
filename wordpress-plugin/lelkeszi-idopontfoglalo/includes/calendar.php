@@ -20,7 +20,9 @@ function lif_cal_monday() {
 	$tz  = lif_tz();
 	$req = isset( $_REQUEST['het'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['het'] ) ) : '';
 	$d   = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $req ) ? new DateTimeImmutable( $req, $tz ) : lif_now()->setTime( 0, 0 );
-	return $d->setTime( 0, 0 )->modify( '-' . ( (int) $d->format( 'N' ) - 1 ) . ' days' );
+	// A hét a felhasználó által választott napon kezdődik (Foglalható idő oldal)
+	$back = ( (int) $d->format( 'N' ) - lif_week_start() + 7 ) % 7;
+	return $d->setTime( 0, 0 )->modify( '-' . $back . ' days' );
 }
 
 function lif_cal_args( $uid, $monday ) {

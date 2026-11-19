@@ -224,9 +224,16 @@ function lif_pp_availability() {
 	$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . lif_t( 'availability' ) . ' WHERE user_id = %d ORDER BY weekday, start_time', $uid ) );
 	echo '<p class="muted" style="max-width:65ch">Állítsa be, mely napokon és milyen időben lehet Önhöz időpontot foglalni. A Google naptárában lévő foglalt időszakokat és a naptárban rögzített szüneteket a rendszer automatikusan kihagyja.</p>';
 	lif_pform( 'save_availability', 'class="card" id="schedule-form"' );
-	echo '<input type="hidden" name="pastor" value="' . (int) $uid . '"><div class="schedule">';
+	echo '<input type="hidden" name="pastor" value="' . (int) $uid . '">';
+	$ws = lif_week_start( $uid );
+	echo '<div class="week-start"><label for="week-start">A hét első napja</label><select name="week_start" id="week-start">';
+	foreach ( LIF_WEEKDAYS as $n => $label ) {
+		echo '<option value="' . (int) $n . '" ' . selected( $ws, $n, false ) . '>' . esc_html( $label ) . '</option>';
+	}
+	echo '</select><span class="muted small">Ebben a sorrendben látja a napokat itt és a Naptárban.</span></div><div class="schedule">';
 	$extra = false;
-	foreach ( LIF_WEEKDAYS as $d => $label ) {
+	foreach ( lif_ordered_weekdays( $ws ) as $d ) {
+		$label  = LIF_WEEKDAYS[ $d ];
 		$ranges = array();
 		foreach ( $rows as $r ) {
 			if ( (int) $r->weekday === $d ) {
@@ -682,6 +689,10 @@ function lif_portal_handle( $sub, $do ) {
 				foreach ( $ranges as $r ) {
 					$wpdb->insert( lif_t( 'availability' ), array( 'user_id' => $uid, 'weekday' => $d, 'start_time' => $r[0], 'end_time' => $r[1] ) );
 				}
+			}
+			$ws = (int) $p( 'week_start', 1 );
+			if ( $ws >= 1 && $ws <= 7 ) {
+				update_user_meta( $uid, 'lif_week_start', $ws );
 			}
 			lif_portal_back( 'foglalhato-ido', 'Foglalható idő mentve.' );
 
