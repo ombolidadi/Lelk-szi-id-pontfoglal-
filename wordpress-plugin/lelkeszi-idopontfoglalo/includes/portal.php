@@ -614,6 +614,7 @@ function lif_pp_profile() {
 	echo '<label>Gyülekezet<input name="congregation" value="' . esc_attr( lif_pastor_meta( $u->ID, 'congregation' ) ) . '"></label>';
 	echo '<label>Rövid bemutatkozás<textarea name="bio" rows="4">' . esc_textarea( $u->description ) . '</textarea></label>';
 	echo '<label>E-mail cím (belépéshez és értesítésekhez)<input type="email" name="email" required value="' . esc_attr( $u->user_email ) . '"></label>';
+	echo '<label>Telefonszám<input type="tel" name="phone" maxlength="40" autocomplete="tel" value="' . esc_attr( get_user_meta( $u->ID, 'lif_phone', true ) ) . '" placeholder="pl. +36 30 123 4567"></label>';
 	echo '<button class="btn btn-primary">Mentés</button></form>';
 	echo '<div class="stack">';
 	echo '<div class="card stack"><h3>Kétfaktoros hitelesítés</h3><p class="muted">' . ( lif_2fa_enabled( $u->ID ) ? 'Bekapcsolva ✓ – belépéskor a jelszó mellett a hitelesítő alkalmazás kódját is kérjük.' : 'Nincs bekapcsolva. Ajánlott: a jelszó mellé a telefonja is kell a belépéshez.' ) . '</p>';
@@ -970,6 +971,10 @@ function lif_portal_handle( $sub, $do ) {
 			if ( '' === $name || ! is_email( $email ) ) {
 				lif_portal_back( 'profil', 'Adjon meg nevet és érvényes e-mail címet.', array(), true );
 			}
+			$phone = $p( 'phone', 40 );
+			if ( '' !== $phone && ( strlen( preg_replace( '/\D/', '', $phone ) ) < 6 || ! preg_match( '/^[0-9 +()\/.-]+$/', $phone ) ) ) {
+				lif_portal_back( 'profil', 'A telefonszám formátuma nem megfelelő (pl. +36 30 123 4567).', array(), true );
+			}
 			$owner = email_exists( $email );
 			if ( $owner && (int) $owner !== $me ) {
 				lif_portal_back( 'profil', 'Ez az e-mail cím már egy másik fiókhoz tartozik.', array(), true );
@@ -977,6 +982,7 @@ function lif_portal_handle( $sub, $do ) {
 			wp_update_user( array( 'ID' => $me, 'display_name' => $name, 'description' => $p( 'bio', 1000 ), 'user_email' => $email ) );
 			update_user_meta( $me, 'lif_title', $p( 'title', 190 ) );
 			update_user_meta( $me, 'lif_congregation', $p( 'congregation', 190 ) );
+			update_user_meta( $me, 'lif_phone', $phone );
 			lif_portal_back( 'profil', 'Profil mentve.' );
 
 		case 'change_password':
